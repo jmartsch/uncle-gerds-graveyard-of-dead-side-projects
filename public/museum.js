@@ -350,8 +350,11 @@ class MuseumScene extends Phaser.Scene {
     const sound = this.makeButton(-pad, pad, isSoundOn() ? 'SOUND ON ' : 'SOUND OFF', () => setSound(!isSoundOn()));
     const museum = this.makeButton(-(pad + sound.w + 18), pad, 'MUSEUM', () => setTheme('museum'), { active: !this.night });
     const grave = this.makeButton(-(pad + sound.w + 18 + museum.w + 6), pad, 'GRAVEYARD', () => setTheme('graveyard'), { active: this.night });
-    this.makeButton(-(pad + sound.w + 18 + museum.w + 6 + grave.w + 18), pad, 'INSTRUCTIONS', (btn, pointer) =>
+    const help = this.makeButton(-(pad + sound.w + 18 + museum.w + 6 + grave.w + 18), pad, 'INSTRUCTIONS', (btn, pointer) =>
       openHelp(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
+    );
+    this.makeButton(-(pad + sound.w + 18 + museum.w + 6 + grave.w + 18 + help.w + 6), pad, 'ALL GRAVEYARDS', (btn, pointer) =>
+      openGuestsDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
     this.hud.sound = sound;
     if (state.data.guest) {
@@ -1169,6 +1172,7 @@ window.addEventListener('keydown', (e) => {
   if (key === 't') setTheme(night() ? 'museum' : 'graveyard');
   if (key === 'g') openDigDialog();
   if (key === 'h' || key === '?') openHelp();
+  if (key === 'l') openGuestsDialog();
 });
 initSound();
 
@@ -1263,6 +1267,51 @@ helpDialog.addEventListener('click', (e) => {
   if (e.target === helpDialog) helpDialog.close();
 });
 document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
+
+// "All graveyards": every guest museum dug so far, in a scrollable popup.
+const guestsDialog = document.getElementById('guests-dialog');
+async function openGuestsDialog(from = null) {
+  if (guestsDialog.open || helpDialog.open || digDialog.open || state.open) return;
+  state.scene?.pauseInput(true);
+  const list = document.getElementById('guests-list');
+  const empty = document.getElementById('guests-empty');
+  list.replaceChildren(el('li', { class: 'muted' }, 'Digging through the records…'));
+  empty.hidden = true;
+  guestsDialog.showModal();
+  if (guestsDialog.animate && !reduceMotion) {
+    const box = guestsDialog.getBoundingClientRect();
+    const origin = from ? `${from.x - box.left}px ${from.y - box.top}px` : '50% 50%';
+    guestsDialog.animate(
+      [
+        { transform: 'scale(0.08)', opacity: 0, transformOrigin: origin },
+        { transform: 'scale(1)', opacity: 1, transformOrigin: origin },
+      ],
+      { duration: 600, easing: 'steps(6, jump-end)' },
+    );
+  }
+  try {
+    const rows = await api('/api/guests');
+    empty.hidden = rows.length > 0;
+    list.replaceChildren(
+      ...rows.map((g) =>
+        el(
+          'li',
+          {},
+          el('a', { href: `/u/${encodeURIComponent(g.slug)}${location.search}` }, el('span', {}, `@${g.name}`), el('span', { class: 'muted' }, `${g.count} ${g.count === 1 ? 'grave' : 'graves'}`)),
+        ),
+      ),
+    );
+  } catch (err) {
+    list.replaceChildren(el('li', { class: 'muted' }, err.message));
+  }
+}
+guestsDialog.addEventListener('close', () => {
+  if (!state.open) state.scene?.pauseInput(false);
+});
+guestsDialog.addEventListener('click', (e) => {
+  if (e.target === guestsDialog) guestsDialog.close();
+});
+document.getElementById('guests-close').addEventListener('click', () => guestsDialog.close());
 
 document.getElementById('dig-again').addEventListener('click', (e) => {
   const r = e.currentTarget.getBoundingClientRect();
@@ -1466,7 +1515,7 @@ async function boot() {
     pixelArt: true,
     backgroundColor: '#1a1016',
     banner: false,
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_HORIZONTALLY },
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: MuseumScene,
   });
   setInterval(refreshIfBusy, 6000);
