@@ -26,7 +26,15 @@ export const PALETTE = {
   l: 0xa29fa0,
   M: 0x738956, // moss highlights
   u: 0x7294cc, // blue cloak highlights
-  a: 0xe0bc7c, // cardigan highlights
+  a: 0xf0cd82, // sunlit straw
+  e: 0x8e6d42, // straw and walking stick shadows
+  j: 0x686b72, // grey hair shadows
+  G: 0x98999a, // salt-and-pepper beard
+  i: 0xbab08d, // linen folds
+  V: 0xa45e39, // leather vest
+  K: 0x673e33, // vest shadow
+  Z: 0xc37d4b, // vest highlights
+  P: 0x494c54, // charcoal trouser highlights
 };
 
 const DEV_TOP = [

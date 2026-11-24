@@ -62,7 +62,7 @@ function doorQuip(ex, index) {
 const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null };
 const night = () => state.theme === 'graveyard';
 const snes = () => night() && state.graveyardStyle === 'snes';
-const graveyardLighting = () => state.lighting ?? (state.graveyardStyle === 'snes' ? 'light' : 'dark');
+const graveyardLighting = () => state.lighting ?? 'dark';
 
 function readGraveyardLighting() {
   const fromUrl = new URLSearchParams(location.search).get('lighting');
@@ -417,7 +417,6 @@ class MuseumScene extends Phaser.Scene {
       return button;
     };
     this.hud.sound = add(isSoundOn() ? 'SOUND ON ' : 'SOUND OFF', () => setSound(!isSoundOn()), { gap: 18 });
-    add('MUSEUM', () => setTheme('museum'), { active: !this.night, gap: 18 });
     add('8-BIT', () => setTheme('graveyard', '8bit'), { active: this.night && !this.snes });
     add('SNES', () => setTheme('graveyard', 'snes'), { active: this.snes, gap: 18 });
     if (this.night) add(this.dark ? 'LIGHT MODE' : 'DARK MODE', toggleGraveyardLighting, { gap: 18 });
@@ -875,7 +874,8 @@ class MuseumScene extends Phaser.Scene {
       const dx = this.player.x + behind - this.uncle.x;
       if (Math.abs(dx) > 14) {
         this.uncle.x += Math.sign(dx) * Math.min(Math.abs(dx), (UNCLE_SPEED * delta) / 1000);
-        this.uncle.setFlipX(dx < 0);
+        // The SNES guide is drawn facing left.
+        this.uncle.setFlipX(this.snes ? dx > 0 : dx < 0);
         uncleSteps = !reduceMotion && Math.floor(time / 160) % 2 === 1;
       }
     } else if (time > this.nextChat && Math.abs(this.player.x - this.uncle.x) < 110 && !this.bubble.visible) {
@@ -1074,9 +1074,8 @@ function renderRoom(ex) {
   );
 }
 
-function portrait() {
-  const rows = snes() ? GRAVE_SPRITES.guide : UNCLE;
-  const c = el('canvas', { width: rows[0].length, height: rows.length, class: 'pixel portrait', role: 'img', 'aria-label': 'Uncle Gerd' });
+function portrait(rows = snes() ? GRAVE_SPRITES.guide : UNCLE, label = 'Uncle Gerd') {
+  const c = el('canvas', { width: rows[0].length, height: rows.length, class: 'pixel portrait', role: 'img', 'aria-label': label });
   paintPixels(c.getContext('2d'), rows);
   return c;
 }
@@ -1479,7 +1478,10 @@ document.getElementById('visit-form').addEventListener('submit', (e) => {
 
 // Uncle Gerd taps his foot (and blinks) while he digs, so you can see he is still at it.
 function tappingUncle() {
-  const c = el('canvas', { width: 14, height: 22, class: 'pixel portrait', role: 'img', 'aria-label': 'Uncle Gerd, tapping his foot while he digs' });
+  const [idle, idleBlink, tap, tapBlink] = snes()
+    ? [GRAVE_SPRITES.guide, GRAVE_SPRITES['guide-blink'], GRAVE_SPRITES['guide-step'], GRAVE_SPRITES['guide-step-blink']]
+    : [UNCLE, UNCLE_BLINK, UNCLE_TAP, UNCLE_TAP_BLINK];
+  const c = portrait(idle, 'Uncle Gerd, tapping his foot while he digs');
   const g = c.getContext('2d');
   let tick = 0;
   let blinkUntil = 0;
@@ -1488,8 +1490,8 @@ function tappingUncle() {
     const tapping = !reduceMotion && (beat === 0 || beat === 2);
     if (!reduceMotion && Math.random() < 0.03) blinkUntil = tick + 1;
     const blink = tick <= blinkUntil;
-    g.clearRect(0, 0, 14, 22);
-    paintPixels(g, tapping ? (blink ? UNCLE_TAP_BLINK : UNCLE_TAP) : blink ? UNCLE_BLINK : UNCLE);
+    g.clearRect(0, 0, c.width, c.height);
+    paintPixels(g, tapping ? (blink ? tapBlink : tap) : blink ? idleBlink : idle);
     tick += 1;
   };
   draw();
@@ -1617,9 +1619,7 @@ async function digGuestMuseum(name) {
 function showDigError(message) {
   document.getElementById('digging').hidden = false;
   document.getElementById('dig-meter').hidden = true;
-  const still = el('canvas', { width: 14, height: 22, class: 'pixel portrait', role: 'img', 'aria-label': 'Uncle Gerd' });
-  paintPixels(still.getContext('2d'), UNCLE);
-  document.getElementById('digging-portrait').replaceChildren(still);
+  document.getElementById('digging-portrait').replaceChildren(portrait());
   document.getElementById('digging-title').textContent = 'Uncle Gerd put down his shovel.';
   document.getElementById('digging-status').textContent = '';
   uncleSays(`Ach. ${message}`);

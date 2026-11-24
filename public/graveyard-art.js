@@ -284,36 +284,40 @@ const HOOD = [
 ];
 
 const GERD = [
-  '.........kkkkk..........',
-  '.......kkssssskk........',
-  '......ksssssssskk.......',
-  '.....kgwssssssssSkk.....',
-  '....kgwgssssssssSSk.....',
-  '....kgwgsssoooSooook....',
-  '...kgwggssokkokokkoSk...',
-  '...kgwggssosssosSSok....',
-  '...kggggssSoookoooSk....',
-  '....kgssSsSSSsssSSSk....',
-  '....kgsSSggggwggSsk.....',
-  '.....kgSgwggwgwwgk......',
-  '.....kSSgggggggSsk......',
-  '......kSSSssssSkk.......',
-  '.....kkCkksskkCkk.......',
-  '....kccCwkkkkwCcck......',
-  '...kcacCcwwwCCcccCk.....',
-  '...kcaccCwwwCcccccCk....',
-  '..kcaccccCwwCcotcCCsk...',
-  '..kcaccccCwwCcccccSsk...',
-  '..kcccccCwwwCccccCsk....',
-  '...kccccCwcwCcccCk......',
-  '...kccccCCoCCcccCk......',
-  '....kccccccccccCk.......',
-  '....knnnnnnnnnnnk.......',
-  '....knnnnknnnnnnk.......',
+  '..........kkkkkkkk',
+  '........kkaaaaaacck',
+  '.......kaaaacaaaaacek',
+  '.......kacaaaccccceek',
+  '......kaacccceceeeehk',
+  '.....kaceehhhhhhecek',
+  '...kkaaccaacccccccceekk',
+  '.kkaaaaaaaaaaccacccceekkk',
+  '.kaacacacccccceccaacccceek',
+  '..kecccehhhhehhhecceeceeeek',
+  '....kkkhejjSSSSSSjkehheekkk',
+  '.......kjGGSSsSSsSSjSkk',
+  '.......kjGsggssgGssjSsk',
+  '.......kjGskssskssssSsk',
+  '........kGSsSssssssSsk',
+  '........kjGsssSSsSSsGk',
+  '........kjGgggGGgggGjk',
+  '.........kGgwgSSSggGjk',
+  '..........kGGgggggGGjkk',
+  '..........kkjGGGjkkZZVkk',
+  '........kkwikjjkwwVZZVKk',
+  '.......kwwikViwiiVZVVKik',
+  '......kiwwikZVwiZVVVKwik',
+  '......kiwiiKZkVVVVVVKiwwik',
+  '.....kiwwiKZVVVZVVVKiwwiik',
+  '.....kiiiikZVVkVVVKKkiwwsSk',
+  '......ksskkVZVVVVVKk.kiiSSsk',
+  '......kSSkkVVVVVVKKk..khSSShk',
+  '.......kk.kVKZVKVVKk....khCk',
+  '.........kkVVKkVKkk.....knCk',
 ];
 
-const rows = (head, feet) => [...head, ...feet].map((line) => line.padEnd(25, '.'));
-const replaceRow = (sprite, i, line) => sprite.map((row, y) => y === i ? line.padEnd(25, '.') : row);
+const rows = (head, feet, width = 25) => [...head, ...feet].map((line) => line.padEnd(width, '.'));
+const replaceRow = (sprite, i, line) => sprite.map((row, y) => y === i ? line.padEnd(row.length, '.') : row);
 
 const WALKER = rows(HOOD, [
   '.......knnnkpnk', '.......knnnkpnk', '......knnnkknnnk', '......kkkk.kkkkk',
@@ -324,13 +328,27 @@ const WALKER_STEP = rows(HOOD, [
 const WALKER_BLINK = replaceRow(WALKER, 10, '..kbbBBBBBoossSssSok');
 
 const GUIDE = rows(GERD, [
-  '....knnnk.knnnnk', '....knnnk.knnnnk', '...khnnnk.khnnnk', '...kkkkk..kkkkk',
-]);
+  '.........kPPPPpPPPPk....knCk',
+  '.........kPPppkpPPPk....knCk',
+  '.........kPppk.kPPPk....knCk',
+  '.........kpppk.kpPpk....khek',
+  '.........khnnk.khhnk....khek',
+  '........khnnnk.knnnk....knCk',
+  '.......knnnnnk.knnnnk...knCk',
+  '.......kkkkkkk.kkkkkk...kkkk',
+], 30);
 const GUIDE_STEP = rows(GERD, [
-  '...knnnk....knnk', '..knnnk.....knnk', '..khhnk.....khnnnk', '..kkkk.......kkkk',
-]);
-const GUIDE_TALK = replaceRow(GUIDE, 11, '.....kgSgggwggggk');
-const blink = (sprite) => replaceRow(sprite, 6, '...kgwggssosSokosSSok');
+  '.........kPPPPpPPPPk....knCk',
+  '........kPPpppkpPPPk....knCk',
+  '........kPpppk.kpPPpk...knCk',
+  '.......kPppk...kpPpk....khek',
+  '.......khhnk....khnnk...khek',
+  '......khnnnk...knnnnk...knCk',
+  '.....knnnnnk..knnnnnk...knCk',
+  '.....kkkkkkk..kkkkkkk...kkkk',
+], 30);
+const GUIDE_TALK = replaceRow(GUIDE, 17, '.........kGgwgkhggGjk');
+const blink = (sprite) => replaceRow(sprite, 13, '.......kjGSGssGSsssSsk');
 
 export const GRAVE_SPRITES = {
   walker: WALKER,

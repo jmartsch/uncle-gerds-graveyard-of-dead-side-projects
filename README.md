@@ -55,8 +55,8 @@ To scan your real GitHub account locally, put `GITHUB_TOKEN=$(gh auth token)` (a
 - Private repositories are never exhibited automatically, because the museum URL is public. Hand-pick them with `EXHIBIT_REPOS` if you really want to.
 - Revivals run with `--dangerously-skip-permissions`, which is exactly why they happen on a disposable, hardware-isolated Sprite instead of your laptop.
 - Deep links: `/#room=<exhibit-id>` opens a room directly.
-- The graveyard starts in **SNES** style. Choose **8-BIT** at the top or press **B** for the original moonlit graveyard. The game remembers your choice. Link directly with `?theme=graveyard&style=8bit` or `?theme=graveyard&style=snes`. The **Museum** has its own button and URL (`?theme=museum`).
-- Use **Light Mode** or **Dark Mode** at the top, or press **N**. SNES starts in daylight and 8-bit in moonlight until you pick a mode. Your choice is remembered across both styles. Add `lighting=light` or `lighting=dark` to a link to open a specific mode.
+- The graveyard starts in **SNES** style. Choose **8-BIT** at the top or press **B** for the original moonlit graveyard. The game remembers your choice. Link directly with `?theme=graveyard&style=8bit` or `?theme=graveyard&style=snes`. Open the **Museum** with **T** or `?theme=museum`.
+- Use **Light Mode** or **Dark Mode** at the top, or press **N**. The graveyard starts at night in both styles. Your choice is remembered across both styles. Add `lighting=light` or `lighting=dark` to a link to open a specific mode.
 
 ## Credits
 
