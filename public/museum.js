@@ -205,7 +205,6 @@ class MuseumScene extends Phaser.Scene {
     this.guiding = startX > UNCLE_X + 140;
     this.chatIndex = 0;
     this.nextChat = 0;
-    this.quipped = new Set();
     this.idle = { devBlinkAt: 1500, devBlinkUntil: 0, uncleBlinkAt: 2600, uncleBlinkUntil: 0, twitchAt: 4000, twitchUntil: 0 };
     if (state.open) this.pauseInput(true); // a room was opened via deep link before the hallway existed
   }
@@ -730,10 +729,7 @@ class MuseumScene extends Phaser.Scene {
       near?.prompt.setVisible(true);
       this.near = near;
       setEnterButton(near);
-      if (near && !this.quipped.has(near.ex.id)) {
-        this.quipped.add(near.ex.id);
-        this.say(doorQuip(near.ex, this.doors.indexOf(near)), 3500);
-      }
+      if (near) this.say(doorQuip(near.ex, this.doors.indexOf(near)), 3500);
     }
 
     // Evaluate every key so their "just pressed" flags reset each frame.
