@@ -64,7 +64,7 @@ function doorQuip(ex, index) {
 }
 
 // ---------- state ----------
-const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, easterEggHintShown: false };
+const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, easterEggHintShown: false };
 const night = () => state.theme === 'graveyard';
 const snes = () => night() && state.graveyardStyle === 'snes';
 const graveyardLighting = () => state.lighting ?? 'dark';
@@ -250,10 +250,9 @@ class MuseumScene extends Phaser.Scene {
     this.lanternHit = this.snes ? this.makeLanternSwitch() : null;
     this.makeHud();
     this.drawGroundHints();
-    if (state.lastX == null) {
+    if (!state.hasWalked) {
       const greeting = exhibits.length ? (this.night ? graveyardGreeting(state.data.owner) : GREETING) : GREETING_EMPTY;
-      if (this.snes) this.say(greeting, 6500);
-      else this.time.delayedCall(500, () => this.say(greeting, 6500));
+      this.say(greeting, null);
     }
     this.flyer = this.night ? this.makeFlyer() : null;
 
@@ -829,11 +828,12 @@ class MuseumScene extends Phaser.Scene {
 
   say(line, ms = 5000, isQuip = false) {
     this.quipShown = isQuip;
+    this.showingGreeting = ms === null;
     const b = this.bubble;
     this.drawBubble(b, line, this.snes ? 'right' : 'left');
     this.positionBubble();
     this.bubbleTimer?.remove();
-    this.bubbleTimer = this.time.delayedCall(ms, () => b.setVisible(false));
+    this.bubbleTimer = ms === null ? null : this.time.delayedCall(ms, () => b.setVisible(false));
   }
 
   positionBubble() {
@@ -936,6 +936,13 @@ class MuseumScene extends Phaser.Scene {
     if (this.playerReaction?.visible) dir = 0;
     if (dir) {
       const nextX = Phaser.Math.Clamp(this.player.x + (dir * SPEED * delta) / 1000, 40, this.worldW - 40);
+      if (!state.hasWalked && nextX !== this.player.x) {
+        state.hasWalked = true;
+        if (this.showingGreeting) {
+          this.bubble.setVisible(false);
+          this.showingGreeting = false;
+        }
+      }
       this.player.setFlipX(dir < 0);
       const lanternStop = SECOND_LANTERN_X - dir * LANTERN_STOP_DISTANCE;
       // Test crossing the approach point. Resuming from exactly that point cannot retrigger it.
