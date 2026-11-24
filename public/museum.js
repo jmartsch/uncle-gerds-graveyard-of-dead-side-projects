@@ -1466,7 +1466,7 @@ async function boot() {
     pixelArt: true,
     backgroundColor: '#1a1016',
     banner: false,
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_HORIZONTALLY },
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: MuseumScene,
   });
   setInterval(refreshIfBusy, 6000);
