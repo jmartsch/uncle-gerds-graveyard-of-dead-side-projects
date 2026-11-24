@@ -13,35 +13,25 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%233a1d2b'/%3E%3Cpath d='M4 15V7a4 4 0 0 1 8 0v8z' fill='%237a2f22' stroke='%23d9a441'/%3E%3C/svg%3E" />
   </head>
   <body>
-    <header class="topbar">
-      <h1>Uncle Gerd's <span id="site-place" class="place">Graveyard</span> <span>of Dead Side Projects</span></h1>
-      <div class="theme-switch" role="group" aria-label="Theme">
-        <button type="button" data-theme-choice="museum" aria-pressed="false">Museum</button>
-        <button type="button" data-theme-choice="graveyard" aria-pressed="true">Graveyard</button>
-      </div>
-      <button type="button" id="sound-toggle" class="sound-toggle" aria-pressed="false" title="Toggle the 8-bit soundtrack (M)">♪ Sound off</button>
-      <form id="visit-form" class="visit" role="search" aria-label="Visit any GitHub user's graveyard">
-        <label for="visit-name">Your graveyard:</label>
-        <input id="visit-name" name="user" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="GitHub username" maxlength="60" required />
-        <button type="submit">Dig</button>
-      </form>
-      <p id="banner" class="banner" hidden></p>
-    </header>
+    <h1 class="visually-hidden">Uncle Gerd's <span id="site-place">Graveyard</span> of Dead Side Projects</h1>
 
     <main>
-      <section id="digging" class="digging" hidden>
-        <h2 id="digging-title">Uncle Gerd is digging…</h2>
-        <div class="dig-stage">
-          <div id="digging-portrait"></div>
-          <p id="dig-bubble" class="dig-bubble" aria-live="polite">Moment, Junge. Let me get my shovel.</p>
-        </div>
-        <p id="digging-status" role="status"></p>
-        <div id="dig-meter" class="dig-meter">
-          <div id="dig-progress" class="dig-progress" role="progressbar" aria-label="Excavation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
-          <span id="dig-clock" class="dig-clock" aria-label="Time spent digging">0:00</span>
-        </div>
-      </section>
-      <div id="game" tabindex="0" role="application" aria-label="The museum hallway. Walk with the arrow keys, enter a room with the up arrow, or use the list of exhibits below."></div>
+      <div class="stage">
+        <div id="game" tabindex="0" role="application" aria-label="The museum hallway. Walk with the arrow keys, enter a room with the up arrow, or use the list of exhibits below."></div>
+        <section id="digging" class="digging" hidden>
+          <h2 id="digging-title">Uncle Gerd is digging…</h2>
+          <div class="dig-stage">
+            <div id="digging-portrait"></div>
+            <p id="dig-bubble" class="dig-bubble" aria-live="polite">Moment, Junge. Let me get my shovel.</p>
+          </div>
+          <p id="digging-status" role="status"></p>
+          <div id="dig-meter" class="dig-meter">
+            <div id="dig-progress" class="dig-progress" role="progressbar" aria-label="Excavation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+            <span id="dig-clock" class="dig-clock" aria-label="Time spent digging">0:00</span>
+          </div>
+          <button type="button" id="dig-again" class="dig-again" hidden>Try another handle</button>
+        </section>
+      </div>
 
       <nav class="touch" aria-label="Walking controls">
         <button type="button" data-move="-1" aria-label="Walk left">◀</button>
@@ -50,7 +40,7 @@
       </nav>
 
       <p class="hint">
-        <kbd>←</kbd> <kbd>→</kbd> walk · <kbd>↑</kbd> enter a room · <kbd>Esc</kbd> leave · <kbd>M</kbd> sound ·
+        <kbd>←</kbd> <kbd>→</kbd> walk · <kbd>↑</kbd> enter a room · <kbd>Esc</kbd> leave · <kbd>M</kbd> sound · <kbd>T</kbd> theme · <kbd>G</kbd> dig yours ·
         <button type="button" id="list-toggle" class="linklike" aria-expanded="false" aria-controls="list">all exhibits</button>
       </p>
 
@@ -65,6 +55,21 @@
     </footer>
 
     <dialog id="room" aria-labelledby="room-title"></dialog>
+    <dialog id="dig-dialog" class="dig-dialog" aria-labelledby="dig-dialog-title">
+      <form id="visit-form" class="visit" method="dialog">
+        <h2 id="dig-dialog-title">Dig up your own graveyard</h2>
+        <p>Uncle Gerd digs up every public repo of yours that has not seen a push in a year.</p>
+        <label for="visit-name">Your GitHub handle</label>
+        <div class="visit-row">
+          <span class="at" aria-hidden="true">@</span>
+          <input id="visit-name" name="github-handle" type="search" enterkeyhint="go" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" autocapitalize="off" spellcheck="false" placeholder="octocat" maxlength="60" required />
+        </div>
+        <div class="visit-actions">
+          <button type="button" class="ghost" id="visit-cancel">Cancel</button>
+          <button type="submit" value="dig">Dig</button>
+        </div>
+      </form>
+    </dialog>
     <p id="toast" class="toast" role="status" hidden></p>
 
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>

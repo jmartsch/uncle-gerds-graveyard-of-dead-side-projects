@@ -185,6 +185,7 @@ class MuseumScene extends Phaser.Scene {
     this.uncle = this.add.image(startX > UNCLE_X + 140 ? startX - 110 : UNCLE_X, FLOOR, 'uncle').setOrigin(0.5, 1).setScale(SCALE).setDepth(4);
     this.player = this.add.image(startX, FLOOR, 'dev-a').setOrigin(0.5, 1).setScale(SCALE).setDepth(5);
     this.bubble = this.makeBubble();
+    this.makeHud();
     if (state.lastX == null) this.time.delayedCall(500, () => this.say(exhibits.length ? (this.night ? NIGHT_GREETING : GREETING) : GREETING_EMPTY, 6500));
     if (this.night) this.makeBat();
 
@@ -249,6 +250,72 @@ class MuseumScene extends Phaser.Scene {
     this.add.text(x, y + 30, title, textStyle(FONT_PIXEL, 16, titleColor)).setOrigin(0.5);
     this.add.text(x, y + 62, name, textStyle(FONT_PIXEL, name.length > 22 ? 9 : 12, nameColor)).setOrigin(0.5);
     this.add.text(x, y + 94, footer, textStyle(FONT_BODY, 20, footerColor)).setOrigin(0.5);
+    // Right under the title: dig up your own graveyard.
+    this.makeButton(x, y + 138, 'DIG YOURS >', (btn, pointer) => openDigDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null), {
+      fixed: false,
+      anchor: 'center',
+      size: 10,
+      depth: 2,
+    });
+  }
+
+  // ---------- buttons inside the game ----------
+  // x < 0 means "from the right edge". fixed buttons stay put on screen, the others live in the world.
+  makeButton(x, y, label, onClick, { fixed = true, anchor = 'left', size = 8, active = false, depth = 30 } = {}) {
+    const night = this.night;
+    const text = this.add.text(0, 0, label, textStyle(FONT_PIXEL, size, '#1a1016')).setDepth(depth + 1);
+    const padX = 8;
+    const padY = 7;
+    const w = Math.ceil(text.width) + padX * 2;
+    const h = Math.ceil(text.height) + padY * 2;
+    const left = anchor === 'center' ? Math.round(x - w / 2) : x < 0 ? W + x - w : x;
+    const bg = this.add.graphics().setDepth(depth);
+    text.setPosition(left + padX, y + padY);
+    const zone = this.add.zone(left, y, w, h).setOrigin(0).setDepth(depth + 2).setInteractive({ useHandCursor: true });
+    if (fixed) for (const o of [bg, text, zone]) o.setScrollFactor(0);
+    const accent = night ? 0xc9c4e6 : 0xd9a441;
+    const btn = { w, h, active, hover: false, text };
+    btn.draw = () => {
+      const lit = btn.active || btn.hover;
+      bg.clear();
+      bg.fillStyle(0x000000, 0.4).fillRect(left + 4, y + 4, w, h);
+      bg.fillStyle(accent, 1).fillRect(left - 3, y - 3, w + 6, h + 6);
+      bg.fillStyle(lit ? accent : night ? 0x14101f : 0x1a1016, 1).fillRect(left, y, w, h);
+      text.setColor(lit ? '#1a1016' : night ? '#e8e2ff' : '#f3e6c8');
+    };
+    btn.setLabel = (l) => text.setText(l);
+    zone.on('pointerover', () => {
+      btn.hover = true;
+      btn.draw();
+    });
+    zone.on('pointerout', () => {
+      btn.hover = false;
+      btn.draw();
+    });
+    zone.on('pointerdown', (pointer) => onClick(btn, pointer));
+    btn.draw();
+    return btn;
+  }
+
+  makeHud() {
+    const pad = 12;
+    this.hud = {};
+    const sound = this.makeButton(-pad, pad, isSoundOn() ? 'SOUND ON ' : 'SOUND OFF', () => setSound(!isSoundOn()));
+    const museum = this.makeButton(-(pad + sound.w + 18), pad, 'MUSEUM', () => setTheme('museum'), { active: !this.night });
+    this.makeButton(-(pad + sound.w + 18 + museum.w + 6), pad, 'GRAVEYARD', () => setTheme('graveyard'), { active: this.night });
+    this.hud.sound = sound;
+    if (state.data.guest) {
+      this.makeButton(pad, pad, this.night ? "< CURATOR'S GRAVEYARD" : "< CURATOR'S MUSEUM", () => {
+        location.href = `/${location.search}`;
+      });
+    } else if (state.admin) {
+      this.hud.rescan = this.makeButton(pad, pad, state.rescanning || 'RESCAN GITHUB', () => rescan());
+    }
+  }
+
+  refreshHud() {
+    this.hud?.sound?.setLabel(isSoundOn() ? 'SOUND ON ' : 'SOUND OFF');
+    this.hud?.rescan?.setLabel(state.rescanning || 'RESCAN GITHUB');
   }
 
   drawEntrance() {
@@ -977,30 +1044,11 @@ function renderList() {
   );
 }
 
-function renderBanner() {
-  const b = document.getElementById('banner');
-  const parts = [];
-  if (state.data.demo) parts.push(el('span', {}, 'Demo exhibits. Once the curator scans GitHub, your own dead projects move in.'));
-  if (state.data.guest) {
-    parts.push(
-      el(
-        'span',
-        {},
-        `The public ${night() ? 'graveyard' : 'museum'} of @${state.data.owner}. `,
-        state.data.exhibits.length ? '' : 'Not a single dead repo, Uncle Gerd is almost disappointed. ',
-        el('a', { href: '/' }, "Visit the curator's own museum"),
-      ),
-    );
-  }
-  if (state.admin) parts.push(el('span', { class: 'curator' }, 'Curator mode ', el('button', { type: 'button', onclick: rescan }, 'Rescan GitHub')));
-  b.replaceChildren(...parts);
-  b.hidden = !parts.length;
-}
-
-async function rescan(ev) {
-  const btn = ev.currentTarget;
-  btn.disabled = true;
-  btn.textContent = 'Scanning…';
+// Curator mode: rescan GitHub from the HUD button; the label shows what the curator is doing.
+async function rescan() {
+  if (state.rescanning) return;
+  state.rescanning = 'SCANNING…';
+  state.scene?.refreshHud();
   try {
     await api('/api/scan', { method: 'POST' });
   } catch (err) {
@@ -1008,19 +1056,12 @@ async function rescan(ev) {
   }
   const timer = setInterval(async () => {
     const s = await api('/api/scan').catch(() => null);
-    if (!s) return;
-    if (s.running) {
-      if (s.log?.length) btn.textContent = s.log.at(-1).msg.slice(0, 48);
-      return;
-    }
+    if (!s || s.running) return;
     clearInterval(timer);
-    if (s.error) {
-      btn.disabled = false;
-      btn.textContent = 'Rescan GitHub';
-      toast(`Scan failed: ${s.error}`);
-    } else {
-      location.reload();
-    }
+    state.rescanning = null;
+    state.scene?.refreshHud();
+    if (s.error) toast(`Scan failed: ${s.error}`);
+    else location.reload();
   }, 2000);
 }
 
@@ -1042,7 +1083,6 @@ function applyTheme() {
   // (read the guest name from the URL here: this runs before GUEST is declared further down)
   const guest = decodeURIComponent(location.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1] || '');
   document.title = guest ? `@${guest} · Uncle Gerd's ${place}` : `Uncle Gerd's ${place} of Dead Side Projects`;
-  for (const b of document.querySelectorAll('[data-theme-choice]')) b.setAttribute('aria-pressed', String(b.dataset.themeChoice === state.theme));
 }
 
 function setTheme(theme) {
@@ -1052,7 +1092,6 @@ function setTheme(theme) {
     localStorage.setItem('ugm-theme', theme);
   } catch {}
   applyTheme();
-  if (state.data) renderBanner();
   const scene = state.scene;
   if (scene?.player) {
     state.lastX = scene.player.x;
@@ -1060,22 +1099,21 @@ function setTheme(theme) {
   }
 }
 
-for (const b of document.querySelectorAll('[data-theme-choice]')) b.addEventListener('click', () => setTheme(b.dataset.themeChoice));
 applyTheme();
 
 // ---------- sound (off by default) ----------
-const soundBtn = document.getElementById('sound-toggle');
-onSoundChange((on) => {
-  soundBtn.setAttribute('aria-pressed', String(on));
-  soundBtn.textContent = on ? '♪ Sound on' : '♪ Sound off';
-});
-soundBtn.addEventListener('click', () => setSound(!isSoundOn()));
+onSoundChange(() => state.scene?.refreshHud());
 // Clicking into the hallway also gives it the keyboard.
-document.getElementById('game').addEventListener('pointerdown', () => focusGame());
+document.getElementById('game').addEventListener('pointerdown', () => {
+  if (!document.querySelector('dialog[open]')) focusGame();
+});
+// Shortcuts: M sound, T theme, G dig up your own graveyard.
 window.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() === 'm' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest?.('input, textarea')) {
-    setSound(!isSoundOn());
-  }
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, dialog')) return;
+  const key = e.key.toLowerCase();
+  if (key === 'm') setSound(!isSoundOn());
+  if (key === 't') setTheme(night() ? 'museum' : 'graveyard');
+  if (key === 'g') openDigDialog();
 });
 initSound();
 
@@ -1114,23 +1152,52 @@ async function fontsReady() {
 const GUEST = decodeURIComponent(location.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1] || '');
 const VALID_NAME = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 
-// While typing a username, the hallway must not steal arrow keys, Space or Enter.
+// "Dig yours": a popup to type a GitHub handle. It zooms out of the button, in hard steps like the rooms.
+const digDialog = document.getElementById('dig-dialog');
 const visitInput = document.getElementById('visit-name');
-visitInput.addEventListener('focus', () => state.scene?.pauseInput(true));
-visitInput.addEventListener('blur', () => {
+
+function openDigDialog(from = null) {
+  if (digDialog.open || state.open) return;
+  state.scene?.pauseInput(true);
+  digDialog.showModal();
+  // Focus after the click that opened us has finished bubbling (it would otherwise refocus the hallway).
+  setTimeout(() => {
+    visitInput.focus();
+    visitInput.select();
+  }, 0);
+  if (!digDialog.animate || reduceMotion) return;
+  const box = digDialog.getBoundingClientRect();
+  const origin = from ? `${from.x - box.left}px ${from.y - box.top}px` : '50% 50%';
+  digDialog.animate(
+    [
+      { transform: 'scale(0.08)', opacity: 0, transformOrigin: origin },
+      { transform: 'scale(1)', opacity: 1, transformOrigin: origin },
+    ],
+    { duration: 600, easing: 'steps(6, jump-end)' },
+  );
+}
+
+digDialog.addEventListener('close', () => {
   if (!state.open) state.scene?.pauseInput(false);
+});
+digDialog.addEventListener('click', (e) => {
+  if (e.target === digDialog) digDialog.close();
+});
+document.getElementById('visit-cancel').addEventListener('click', () => digDialog.close());
+document.getElementById('dig-again').addEventListener('click', (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  openDigDialog({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 });
 
 document.getElementById('visit-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const input = document.getElementById('visit-name');
-  const name = input.value.trim().replace(/^@/, '').replace(/^https?:\/\/github\.com\//i, '').split('/')[0];
+  const name = visitInput.value.trim().replace(/^@/, '').replace(/^https?:\/\/github\.com\//i, '').split('/')[0];
   if (!VALID_NAME.test(name)) {
-    toast('That does not look like a GitHub username.');
-    input.focus();
+    toast('That does not look like a GitHub handle.');
+    visitInput.focus();
     return;
   }
-  location.href = `/u/${encodeURIComponent(name)}`;
+  location.href = `/u/${encodeURIComponent(name)}${location.search}`;
 });
 
 // Uncle Gerd taps his foot (and blinks) while he digs, so you can see he is still at it.
@@ -1279,12 +1346,12 @@ function showDigError(message) {
   document.getElementById('digging-title').textContent = 'Uncle Gerd put down his shovel.';
   document.getElementById('digging-status').textContent = '';
   uncleSays(`Ach. ${message}`);
-  document.getElementById('visit-name').focus();
+  document.getElementById('dig-again').hidden = false;
 }
 
 async function boot() {
   if (GUEST) {
-    const hallway = [document.getElementById('game'), document.querySelector('.hint')];
+    const hallway = [document.getElementById('game')];
     for (const node of hallway) node.hidden = true; // nothing to walk through until the digging is done
     document.getElementById('visit-name').value = GUEST;
     if (!VALID_NAME.test(GUEST)) return showDigError('That is not a valid GitHub username.');
@@ -1302,7 +1369,6 @@ async function boot() {
       return;
     }
   }
-  renderBanner();
   renderList();
   await fontsReady();
   const deepLink = decodeURIComponent(location.hash.match(/^#room=([\w-]+)/)?.[1] || '');

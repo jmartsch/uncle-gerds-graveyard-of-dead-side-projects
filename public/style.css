@@ -718,3 +718,150 @@ dialog::backdrop {
 :root[data-theme='graveyard'] .topbar h1 {
   color: #e8e2ff;
 }
+
+/* ---------- everything lives inside the stage now ---------- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+main {
+  padding-top: 16px;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 110px);
+  margin: 0 auto;
+  border: 4px solid var(--gold);
+  background: var(--wall);
+}
+
+.stage #game {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  max-height: none;
+  border: 0;
+}
+
+.stage .digging {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border: 0;
+  overflow: auto;
+}
+
+.dig-again {
+  margin-top: 4px;
+  background: var(--gold);
+  color: var(--ink);
+  border: 0;
+  min-height: 44px;
+  padding: 6px 16px;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 0.45);
+}
+
+/* ---------- "dig yours" popup ---------- */
+.dig-dialog {
+  width: min(460px, calc(100% - 32px));
+  padding: 0;
+  background: var(--room);
+  color: var(--cream);
+  border: 4px solid var(--gold);
+  box-shadow:
+    0 0 0 4px var(--ink),
+    0 24px 80px rgb(0 0 0 / 0.6);
+}
+
+.dig-dialog::backdrop {
+  background: rgb(10 5 8 / 0.7);
+}
+
+.dig-dialog form {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.dig-dialog h2 {
+  margin: 0;
+  font: 13px/1.6 var(--pixel);
+  color: var(--gold);
+}
+
+.dig-dialog p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.dig-dialog label {
+  color: var(--gold);
+}
+
+.visit-row {
+  display: flex;
+  align-items: center;
+  border: 3px solid var(--gold);
+  background: var(--ink);
+}
+
+.visit-row .at {
+  padding: 0 4px 0 12px;
+  color: var(--muted);
+  font-size: 26px;
+}
+
+.visit-row input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 4px 12px 4px 2px;
+  font: 26px var(--body);
+  background: transparent;
+  color: var(--cream);
+  border: 0;
+  outline: none;
+}
+
+.visit-row:focus-within {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.visit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.visit-actions button {
+  min-height: 44px;
+  padding: 6px 18px;
+  background: var(--gold);
+  color: var(--ink);
+  border: 0;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 0.45);
+}
+
+.visit-actions .ghost {
+  background: transparent;
+  color: var(--cream);
+  border: 2px solid var(--gold);
+  box-shadow: none;
+}
+
+.visit-row input {
+  appearance: none;
+}
+
+.visit-row input::-webkit-search-cancel-button {
+  display: none;
+}
