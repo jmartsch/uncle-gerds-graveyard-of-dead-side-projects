@@ -863,7 +863,6 @@ function renderRoom(ex) {
       el(
         'div',
         { class: 'room-grid' },
-        el('figure', { class: 'painting' }, painting(ex), el('figcaption', {}, `${ex.language} · ${ex.lifespanDays} days of life`)),
         el(
           'div',
           { class: 'plaque' },
@@ -871,8 +870,10 @@ function renderRoom(ex) {
           el(
             'dl',
             {},
+            ...dd('Language', ex.language),
             ...dd('Born', shortDate(ex.born)),
             ...dd('Died', shortDate(ex.died)),
+            ...dd('Lifespan', `${ex.lifespanDays} days`),
             ...dd('Last words', `“${ex.lastWords}”`),
             ...dd('Cause of death', ex.causeOfDeath),
             ...dd('Survived by', `${ex.openIssues} open issue${ex.openIssues === 1 ? '' : 's'}, ${ex.stars} star${ex.stars === 1 ? '' : 's'}`),
@@ -891,36 +892,6 @@ function renderRoom(ex) {
       el('section', { class: 'revival', id: 'revival', 'aria-labelledby': 'revival-title' }, ...revivalContent(ex)),
     ),
   );
-}
-
-function painting(ex) {
-  const c = el('canvas', { width: 48, height: 32, class: 'pixel', role: 'img', 'aria-label': `An abstract portrait of ${ex.title}` });
-  const g = c.getContext('2d');
-  const rand = mulberry32(hash(ex.id));
-  const hues = [rand() * 360, rand() * 360, rand() * 360];
-  g.fillStyle = `hsl(${hues[0]} 35% 22%)`;
-  g.fillRect(0, 0, 48, 32);
-  const horizon = 18 + Math.floor(rand() * 6);
-  g.fillStyle = `hsl(${hues[1]} 40% 32%)`;
-  g.fillRect(0, horizon, 48, 32 - horizon);
-  const sx = 6 + Math.floor(rand() * 30);
-  const sy = 3 + Math.floor(rand() * 7);
-  g.fillStyle = `hsl(${hues[2]} 80% 72%)`;
-  g.fillRect(sx, sy + 1, 6, 4);
-  g.fillRect(sx + 1, sy, 4, 6);
-  for (let i = 0; i < 7; i++) {
-    const w = 3 + Math.floor(rand() * 6);
-    const h = 4 + Math.floor(rand() * 12);
-    g.fillStyle = `hsl(${hues[1]} 30% ${12 + rand() * 18}%)`;
-    g.fillRect(Math.floor(rand() * 44), horizon - h + 2, w, h);
-  }
-  g.fillStyle = '#c9c2b6';
-  g.fillRect(36, horizon - 4, 7, 8);
-  g.fillRect(37, horizon - 5, 5, 1);
-  g.fillStyle = '#6b6258';
-  g.fillRect(39, horizon - 3, 1, 4);
-  g.fillRect(38, horizon - 2, 3, 1);
-  return c;
 }
 
 function portrait() {
