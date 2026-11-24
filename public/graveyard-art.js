@@ -7,7 +7,7 @@ const CAVE_X = 151;
 const CAVE_Y = 75;
 const FIRST_LANTERN = 78;
 const LANTERN_GAP = 196;
-const SECOND_LANTERN = 366;
+const SECOND_LANTERN = 650;
 export const SECOND_LANTERN_X = SECOND_LANTERN * PIXEL;
 const PALETTES = {
   light: {
@@ -225,11 +225,13 @@ function graveyardChunk(start, width, height, lighting) {
   for (let x = Math.floor((start - BLEED) / 196) * 196; x < end + BLEED; x += 196) {
     ridge(ctx, x + 139, x + 184, (p) => Math.max(gravePathY(p * PIXEL) / PIXEL + 18, 166 + Math.floor(7 * Math.sin(p / 11))), 20, x + 120, colors);
   }
-  const firstLanternInChunk = Math.max(0, Math.floor((start - BLEED - FIRST_LANTERN) / LANTERN_GAP));
-  for (let i = firstLanternInChunk; ; i++) {
-    const x = i === 1 ? SECOND_LANTERN : FIRST_LANTERN + i * LANTERN_GAP;
-    if (x >= end + BLEED) break;
-    lantern(ctx, x, lanternBaseY(x * PIXEL) / PIXEL, lighting === 'dark');
+  const lit = lighting === 'dark';
+  if (start - BLEED <= FIRST_LANTERN && FIRST_LANTERN < end + BLEED) {
+    lantern(ctx, FIRST_LANTERN, lanternBaseY(FIRST_LANTERN * PIXEL) / PIXEL, lit);
+  }
+  const firstPost = Math.max(0, Math.floor((start - BLEED - SECOND_LANTERN) / LANTERN_GAP));
+  for (let x = SECOND_LANTERN + firstPost * LANTERN_GAP; x < end + BLEED; x += LANTERN_GAP) {
+    lantern(ctx, x, lanternBaseY(x * PIXEL) / PIXEL, lit);
   }
   return canvas;
 }

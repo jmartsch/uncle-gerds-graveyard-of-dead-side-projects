@@ -11,6 +11,8 @@ const FIRST_MUSEUM_DOOR = 660;
 const GRAVEYARD_ENTRANCE_X = W - 212;
 const DIG_BUTTON_CENTER_RADIUS = 18;
 const FIRST_GRAVE = 1400;
+const FIRST_SNES_GRAVE = 2300;
+const EASTER_EGG_HINT_X = GRAVEYARD_ENTRANCE_X + 532;
 const DOOR_GAP = 330;
 const PLAYER_START_X = 150;
 const UNCLE_X = 330;
@@ -25,10 +27,12 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const GREETING = 'Ach, Junge. Welcome to your graveyard. Walk right, I will show you around.';
 const GREETING_EMPTY = 'Na ja. No dead projects at all? Come back in a year, Junge.';
+const GRAVEYARD_QUESTION = 'Uncle Gerd, where are we?';
+const GRAVEYARD_ANSWER = 'Come on, Junge. Let’s look around.';
 const EASTER_EGG_HINT = 'Maybe we’ll find a few Easter eggs along the way.';
-const graveyardGreeting = (owner) => owner
-  ? `Komm, Junge. Let’s explore @${owner}’s dead projects.`
-  : 'Komm, Junge. Let’s explore these dead projects.';
+const graveyardSignLine = (owner) => owner
+  ? `Ah, this is where @${owner}’s old projects are buried.`
+  : 'Ah, this is where the old projects are buried.';
 const NIGHT_LINES = [
   'Mind your step. Some of these still compile.',
   "Hear that? Not a bat. A deprecation warning.",
@@ -64,9 +68,10 @@ function doorQuip(ex, index) {
 }
 
 // ---------- state ----------
-const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, easterEggHintShown: false };
+const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, graveyardSignShown: false, easterEggHintShown: false };
 const night = () => state.theme === 'graveyard';
 const snes = () => night() && state.graveyardStyle === 'snes';
+const firstExhibitX = () => snes() ? FIRST_SNES_GRAVE : night() ? FIRST_GRAVE : FIRST_MUSEUM_DOOR;
 const graveyardLighting = () => state.lighting ?? 'dark';
 
 function readGraveyardLighting() {
@@ -195,7 +200,7 @@ class MuseumScene extends Phaser.Scene {
     this.night = night();
     this.snes = snes();
     this.dark = this.night && graveyardLighting() === 'dark';
-    this.firstExhibitX = this.night ? FIRST_GRAVE : FIRST_MUSEUM_DOOR;
+    this.firstExhibitX = firstExhibitX();
     this.worldW = Math.max(W, this.firstExhibitX + Math.max(exhibits.length - 1, 0) * DOOR_GAP + 620);
 
     this.makeTexture('dev-a', DEV_A);
@@ -245,14 +250,19 @@ class MuseumScene extends Phaser.Scene {
       this.playerShadow = this.add.ellipse(startX, this.player.y - 2, 48, 13, 0x44352b, 0.46).setDepth(2);
     }
     this.bubble = this.makeBubble();
+    this.playerQuestion = null;
     this.playerReaction = this.snes ? this.makeBubble().setDepth(11) : null;
     this.reactionMarks = this.snes ? this.add.graphics().setDepth(12).setVisible(false) : null;
     this.lanternHit = this.snes ? this.makeLanternSwitch() : null;
     this.makeHud();
     this.drawGroundHints();
     if (!state.hasWalked) {
-      const greeting = exhibits.length ? (this.night ? graveyardGreeting(state.data.owner) : GREETING) : GREETING_EMPTY;
-      this.say(greeting, null);
+      if (this.night && exhibits.length) {
+        this.playerQuestion = this.makeBubble().setDepth(11);
+        this.drawPlayerBubble(this.playerQuestion, GRAVEYARD_QUESTION);
+      } else {
+        this.say(exhibits.length ? GREETING : GREETING_EMPTY, null);
+      }
     }
     this.flyer = this.night ? this.makeFlyer() : null;
 
@@ -843,12 +853,16 @@ class MuseumScene extends Phaser.Scene {
     b.setPosition(x, this.uncle.y - this.uncle.displayHeight - b.bubbleHeight - 24);
   }
 
+  drawPlayerBubble(bubble, line) {
+    this.drawBubble(bubble, line, 'center');
+    bubble.setPosition(Math.round(this.player.x - bubble.bubbleWidth / 2), this.walkY(this.player.x) - this.player.displayHeight - bubble.bubbleHeight - 16);
+  }
+
   reactAtLantern() {
     this.bubbleTimer?.remove();
     this.bubble.setVisible(false);
     const reaction = this.playerReaction;
-    this.drawBubble(reaction, 'Huh?', 'center');
-    reaction.setPosition(Math.round(this.player.x - reaction.bubbleWidth / 2), this.walkY(this.player.x) - this.player.displayHeight - reaction.bubbleHeight - 16);
+    this.drawPlayerBubble(reaction, 'Huh?');
     const marks = this.reactionMarks;
     const left = reaction.x - 14;
     const right = reaction.x + reaction.bubbleWidth + 10;
@@ -909,6 +923,7 @@ class MuseumScene extends Phaser.Scene {
 
   update(time, delta) {
     if (state.open) return;
+    const previousX = this.player.x;
     const k = { ...this.moveKeys, ...this.actionKeys };
     let blocked = focusIsInteractive();
     // Walking with the arrow keys hands the keyboard back to the game (e.g. after clicking "Music on"),
@@ -938,7 +953,10 @@ class MuseumScene extends Phaser.Scene {
       const nextX = Phaser.Math.Clamp(this.player.x + (dir * SPEED * delta) / 1000, 40, this.worldW - 40);
       if (!state.hasWalked && nextX !== this.player.x) {
         state.hasWalked = true;
-        if (this.showingGreeting) {
+        if (this.playerQuestion?.visible) {
+          this.playerQuestion.setVisible(false);
+          this.say(GRAVEYARD_ANSWER);
+        } else if (this.showingGreeting) {
           this.bubble.setVisible(false);
           this.showingGreeting = false;
         }
@@ -967,22 +985,20 @@ class MuseumScene extends Phaser.Scene {
     if (this.snes) this.playerShadow.setPosition(this.player.x, this.player.y - 2);
     if (this.night) this.updateFlyer(time, delta);
 
-    if (this.snes && !state.easterEggHintShown && dir > 0 && this.player.x > UNCLE_X + 140 && this.player.x < SECOND_LANTERN_X - LANTERN_STOP_DISTANCE) {
-      state.easterEggHintShown = true;
-      this.say(EASTER_EGG_HINT, 5000);
-    }
+    if (this.night) this.updateGraveyardDialogue(previousX);
 
     // Uncle Gerd starts guiding once you walk past him, and trails a few steps behind.
     if (!this.guiding && this.player.x > UNCLE_X + 140) {
       this.guiding = true;
-      if (!this.snes) this.say(this.night ? 'Komm, Junge. Every stone has a story.' : 'Komm, Junge. Every room has a story.', 3500);
+      if (!this.night) this.say('Komm, Junge. Every room has a story.', 3500);
     }
     let uncleSteps = false;
     if (this.guiding) {
       const behind = this.player.flipX ? 110 : -110;
       const dx = this.player.x + behind - this.uncle.x;
       if (Math.abs(dx) > 14) {
-        this.uncle.x += Math.sign(dx) * Math.min(Math.abs(dx), (UNCLE_SPEED * delta) / 1000);
+        const speed = this.snes ? SPEED : UNCLE_SPEED;
+        this.uncle.x += Math.sign(dx) * Math.min(Math.abs(dx), (speed * delta) / 1000);
         // The SNES guide is drawn facing left.
         this.uncle.setFlipX(this.snes ? dx > 0 : dx < 0);
         uncleSteps = !reduceMotion && Math.floor(time / 160) % 2 === 1;
@@ -1018,6 +1034,17 @@ class MuseumScene extends Phaser.Scene {
     const actionPressed = interact || (!blocked && other.some(Boolean));
     if (actionPressed && near) openRoom(near.ex.id);
     else if (interact && this.lanternHit && Math.abs(this.player.x - SECOND_LANTERN_X) <= LANTERN_INTERACTION_DISTANCE) this.activateLantern();
+  }
+
+  updateGraveyardDialogue(previousX) {
+    if (!this.doors.length) return;
+    if (!state.graveyardSignShown && previousX < GRAVEYARD_ENTRANCE_X && this.player.x >= GRAVEYARD_ENTRANCE_X) {
+      state.graveyardSignShown = true;
+      this.say(graveyardSignLine(state.data.owner));
+    } else if (this.snes && state.graveyardSignShown && !state.easterEggHintShown && previousX < EASTER_EGG_HINT_X && this.player.x >= EASTER_EGG_HINT_X) {
+      state.easterEggHintShown = true;
+      this.say(EASTER_EGG_HINT);
+    }
   }
 
   updateDigButton() {
@@ -1453,7 +1480,7 @@ function setTheme(theme, style = state.graveyardStyle, lighting = state.lighting
   const scene = state.scene;
   if (scene?.player) {
     const oldFirst = scene.firstExhibitX;
-    const newFirst = night() ? FIRST_GRAVE : FIRST_MUSEUM_DOOR;
+    const newFirst = firstExhibitX();
     // Preserve progress along the approach and the position relative to the exhibits.
     const progress = Phaser.Math.Clamp((scene.player.x - PLAYER_START_X) / (oldFirst - PLAYER_START_X), 0, 1);
     state.lastX = scene.player.x + (newFirst - oldFirst) * progress;
