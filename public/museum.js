@@ -1,5 +1,5 @@
-import { DEV_A, DEV_B, DEV_BLINK, UNCLE, UNCLE_BLINK, UNCLE_TWITCH, UNCLE_TWITCH_BLINK, UNCLE_TAP, UNCLE_TAP_BLINK, DOOR, TOMB, BAT_UP, BAT_DOWN, PALETTE, paintPixels } from './pixels.js';
-import { addGraveyardTerrain, gravePathY, GRAVE_SPRITES, PIXEL } from './graveyard-art.js';
+import { DEV_A, DEV_B, DEV_BLINK, UNCLE, UNCLE_BLINK, UNCLE_TWITCH, UNCLE_TWITCH_BLINK, UNCLE_TAP, UNCLE_TAP_BLINK, DOOR, TOMB, BAT_UP, BAT_DOWN, BIRD_UP, BIRD_DOWN, PALETTE, paintPixels } from './pixels.js';
+import { addGraveyardTerrain, gravePathY, lanternBaseY, GRAVE_SPRITES, PIXEL, SECOND_LANTERN_X } from './graveyard-art.js';
 import { sfx, setSound, setSoundStyle, isSoundOn, onSoundChange, initSound } from './sound.js';
 
 // ---------- constants ----------
@@ -9,10 +9,14 @@ const FLOOR = 452;
 const SCALE = 4;
 const FIRST_MUSEUM_DOOR = 660;
 const GRAVEYARD_ENTRANCE_X = W - 212;
+const DIG_BUTTON_CENTER_RADIUS = 18;
 const FIRST_GRAVE = 1400;
 const DOOR_GAP = 330;
 const PLAYER_START_X = 150;
 const UNCLE_X = 330;
+const LANTERN_STOP_DISTANCE = 42; // Leave the post visible beside the player.
+const LANTERN_INTERACTION_DISTANCE = 70;
+const LANTERN_PAUSE_MS = 900;
 const SPEED = 260;
 const UNCLE_SPEED = 230;
 const FONT_PIXEL = '"Press Start 2P", monospace';
@@ -21,6 +25,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const GREETING = 'Ach, Junge. Welcome to your graveyard. Walk right, I will show you around.';
 const GREETING_EMPTY = 'Na ja. No dead projects at all? Come back in a year, Junge.';
+const EASTER_EGG_HINT = 'Maybe we’ll find a few Easter eggs along the way.';
 const graveyardGreeting = (owner) => owner
   ? `Komm, Junge. Let’s explore @${owner}’s dead projects.`
   : 'Komm, Junge. Let’s explore these dead projects.';
@@ -59,7 +64,7 @@ function doorQuip(ex, index) {
 }
 
 // ---------- state ----------
-const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null };
+const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, easterEggHintShown: false };
 const night = () => state.theme === 'graveyard';
 const snes = () => night() && state.graveyardStyle === 'snes';
 const graveyardLighting = () => state.lighting ?? 'dark';
@@ -203,6 +208,8 @@ class MuseumScene extends Phaser.Scene {
     this.makeTexture('door', DOOR);
     this.makeTexture('bat-up', BAT_UP);
     this.makeTexture('bat-down', BAT_DOWN);
+    this.makeTexture('bird-up', BIRD_UP);
+    this.makeTexture('bird-down', BIRD_DOWN);
 
     this.uncleShadow = null;
     if (this.snes) {
@@ -238,13 +245,17 @@ class MuseumScene extends Phaser.Scene {
       this.playerShadow = this.add.ellipse(startX, this.player.y - 2, 48, 13, 0x44352b, 0.46).setDepth(2);
     }
     this.bubble = this.makeBubble();
+    this.playerReaction = this.snes ? this.makeBubble().setDepth(11) : null;
+    this.reactionMarks = this.snes ? this.add.graphics().setDepth(12).setVisible(false) : null;
+    this.lanternHit = this.snes ? this.makeLanternSwitch() : null;
     this.makeHud();
     this.drawGroundHints();
     if (state.lastX == null) {
       const greeting = exhibits.length ? (this.night ? graveyardGreeting(state.data.owner) : GREETING) : GREETING_EMPTY;
-      this.time.delayedCall(500, () => this.say(greeting, 6500));
+      if (this.snes) this.say(greeting, 6500);
+      else this.time.delayedCall(500, () => this.say(greeting, 6500));
     }
-    this.bat = this.dark || this.snes ? this.makeBat() : null;
+    this.flyer = this.night ? this.makeFlyer() : null;
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.worldW, H);
@@ -253,8 +264,11 @@ class MuseumScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     this.moveKeys = kb.addKeys({ left: 'LEFT', right: 'RIGHT', up: 'UP' }); // captured: arrows never scroll the page
     this.actionKeys = kb.addKeys({ a: 'A', d: 'D', w: 'W', e: 'E', enter: 'ENTER', space: 'SPACE' }, false);
+    this.restoreLanternInput?.();
 
     this.touchDir = 0;
+    this.underDigButton = false;
+    this.digButtonPulse = null;
     this.walkClock = 0;
     this.target = null;
     this.near = null;
@@ -311,7 +325,7 @@ class MuseumScene extends Phaser.Scene {
     this.add.text(x, y + 62, name, textStyle(FONT_PIXEL, name.length > 22 ? 9 : 12, nameColor)).setOrigin(0.5);
     this.add.text(x, y + 94, footer, textStyle(FONT_BODY, 20, footerColor)).setOrigin(0.5);
     // Right under the title: dig up your own graveyard.
-    this.makeButton(x, y + 138, 'DIG YOURS >', (btn, pointer) => openDigDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null), {
+    this.digButton = this.makeButton(x, y + 138, 'DIG YOURS >', (btn, pointer) => openDigDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null), {
       fixed: false,
       anchor: 'center',
       size: 10,
@@ -335,12 +349,17 @@ class MuseumScene extends Phaser.Scene {
     if (fixed) for (const o of [bg, text, zone]) o.setScrollFactor(0);
     const accent = this.snes ? (this.dark ? 0xb6c5e3 : 0xd1b081) : classic ? 0xc9c4e6 : 0xd9a441;
     const background = this.snes ? (this.dark ? 0x222942 : 0x262b24) : classic ? 0x14101f : 0x1a1016;
-    const btn = { w, h, active, hover: false, text };
+    const btn = { w, h, active, hover: false, attention: 0, text };
     btn.draw = () => {
       const lit = btn.active || btn.hover;
       bg.clear();
       bg.fillStyle(0x000000, 0.4).fillRect(left + 4, y + 4, w, h);
+      if (btn.attention) {
+        const spread = Math.round(4 + btn.attention * 4);
+        bg.fillStyle(0xf6c580, btn.attention * 0.38).fillRect(left - spread, y - spread, w + spread * 2, h + spread * 2);
+      }
       bg.fillStyle(accent, 1).fillRect(left - 3, y - 3, w + 6, h + 6);
+      if (btn.attention) bg.fillStyle(0xf8d393, btn.attention).fillRect(left - 3, y - 3, w + 6, h + 6);
       bg.fillStyle(lit ? accent : background, 1).fillRect(left, y, w, h);
       text.setColor(lit ? '#1a1016' : classic ? '#e8e2ff' : '#f3e6c8');
     };
@@ -416,10 +435,9 @@ class MuseumScene extends Phaser.Scene {
       right += button.w + gap;
       return button;
     };
-    this.hud.sound = add(isSoundOn() ? 'SOUND ON ' : 'SOUND OFF', () => setSound(!isSoundOn()), { gap: 18 });
+    this.hud.sound = add(isSoundOn() ? 'MUSIC ON ' : 'MUSIC OFF', () => setSound(!isSoundOn()), { gap: 18 });
     add('8-BIT', () => setTheme('graveyard', '8bit'), { active: this.night && !this.snes });
     add('SNES', () => setTheme('graveyard', 'snes'), { active: this.snes, gap: 18 });
-    if (this.night) add(this.dark ? 'LIGHT MODE' : 'DARK MODE', toggleGraveyardLighting, { gap: 18 });
     add('INSTRUCTIONS', (btn, pointer) =>
       openHelp(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
@@ -436,7 +454,7 @@ class MuseumScene extends Phaser.Scene {
   }
 
   refreshHud() {
-    this.hud?.sound?.setLabel(isSoundOn() ? 'SOUND ON ' : 'SOUND OFF');
+    this.hud?.sound?.setLabel(isSoundOn() ? 'MUSIC ON ' : 'MUSIC OFF');
     this.hud?.rescan?.setLabel(state.rescanning || 'RESCAN GITHUB');
   }
 
@@ -748,26 +766,29 @@ class MuseumScene extends Phaser.Scene {
     this.add.text(x, y - 24, 'CLOSED FOREVER', textStyle(FONT_BODY, 15, '#ddc5ab')).setOrigin(0.5);
   }
 
-  makeBat() {
-    const bat = this.add.image(-40, 120, 'bat-up').setScale(this.snes ? PIXEL : SCALE).setScrollFactor(0.6).setDepth(this.snes ? -1 : 3);
-    this.batDir = 1;
-    this.batBaseY = 110;
-    if (reduceMotion) bat.setPosition(W * 0.62, 150); // just hangs around
-    return bat;
+  makeFlyer() {
+    this.flyerKind = this.dark ? 'bat' : 'bird';
+    const flyer = this.add.image(-40, 120, `${this.flyerKind}-up`)
+      .setScale(this.snes || !this.dark ? PIXEL : SCALE).setScrollFactor(0.6).setDepth(this.snes ? -1 : 3);
+    this.flyerDir = 1;
+    this.flyerBaseY = 110;
+    if (reduceMotion) flyer.setPosition(W * 0.62, 150);
+    return flyer;
   }
 
-  flyBat(time, delta) {
-    const bat = this.bat;
-    if (!bat || reduceMotion) return;
-    bat.setTexture(Math.floor(time / 110) % 2 ? 'bat-down' : 'bat-up');
-    bat.x += (this.batDir * 120 * delta) / 1000;
-    bat.y = this.batBaseY + Math.sin(time / 260) * 14 + Math.sin(time / 1100) * 26;
+  updateFlyer(time, delta) {
+    const flyer = this.flyer;
+    if (!flyer || reduceMotion) return;
+    const wing = Math.floor(time / 110) % 2 ? 'down' : 'up';
+    flyer.setTexture(`${this.flyerKind}-${wing}`);
+    flyer.x += (this.flyerDir * 120 * delta) / 1000;
+    flyer.y = this.flyerBaseY + Math.sin(time / 260) * 14 + Math.sin(time / 1100) * 26;
     // Turn around once it leaves the screen, at a new height.
-    const screenX = bat.x - this.cameras.main.scrollX * 0.6;
-    if ((this.batDir > 0 && screenX > W + 60) || (this.batDir < 0 && screenX < -60)) {
-      this.batDir *= -1;
-      bat.setFlipX(this.batDir < 0);
-      this.batBaseY = 70 + Math.random() * 150;
+    const screenX = flyer.x - this.cameras.main.scrollX * 0.6;
+    if ((this.flyerDir > 0 && screenX > W + 60) || (this.flyerDir < 0 && screenX < -60)) {
+      this.flyerDir *= -1;
+      flyer.setFlipX(this.flyerDir < 0);
+      this.flyerBaseY = 70 + Math.random() * 150;
     }
   }
 
@@ -791,18 +812,25 @@ class MuseumScene extends Phaser.Scene {
     return container;
   }
 
-  say(line, ms = 5000, isQuip = false) {
-    const b = this.bubble;
-    this.quipShown = isQuip;
+  drawBubble(b, line, tail) {
     b.text.setText(line);
     b.bubbleWidth = Math.ceil(b.text.width) + 24;
     b.bubbleHeight = Math.ceil(b.text.height) + 16;
     b.bg.clear();
     b.bg.fillStyle(0x1a1016, 1).fillRect(-3, -3, b.bubbleWidth + 6, b.bubbleHeight + 6);
     b.bg.fillStyle(0xf3e6c8, 1).fillRect(0, 0, b.bubbleWidth, b.bubbleHeight);
-    if (this.snes) b.bg.fillTriangle(b.bubbleWidth - 40, b.bubbleHeight, b.bubbleWidth - 18, b.bubbleHeight, b.bubbleWidth - 12, b.bubbleHeight + 16);
+    if (tail === 'center') {
+      const center = Math.round(b.bubbleWidth / 2);
+      b.bg.fillTriangle(center - 8, b.bubbleHeight, center + 8, b.bubbleHeight, center, b.bubbleHeight + 11);
+    } else if (tail === 'right') b.bg.fillTriangle(b.bubbleWidth - 40, b.bubbleHeight, b.bubbleWidth - 18, b.bubbleHeight, b.bubbleWidth - 12, b.bubbleHeight + 16);
     else b.bg.fillTriangle(18, b.bubbleHeight, 40, b.bubbleHeight, 12, b.bubbleHeight + 16);
     b.setVisible(true);
+  }
+
+  say(line, ms = 5000, isQuip = false) {
+    this.quipShown = isQuip;
+    const b = this.bubble;
+    this.drawBubble(b, line, this.snes ? 'right' : 'left');
     this.positionBubble();
     this.bubbleTimer?.remove();
     this.bubbleTimer = this.time.delayedCall(ms, () => b.setVisible(false));
@@ -813,6 +841,63 @@ class MuseumScene extends Phaser.Scene {
     const left = this.snes ? this.uncle.x - b.bubbleWidth + 22 : this.uncle.x - 30;
     const x = Phaser.Math.Clamp(left, 8, this.worldW - b.bubbleWidth - 8);
     b.setPosition(x, this.uncle.y - this.uncle.displayHeight - b.bubbleHeight - 24);
+  }
+
+  reactAtLantern() {
+    this.bubbleTimer?.remove();
+    this.bubble.setVisible(false);
+    const reaction = this.playerReaction;
+    this.drawBubble(reaction, 'Huh?', 'center');
+    reaction.setPosition(Math.round(this.player.x - reaction.bubbleWidth / 2), this.walkY(this.player.x) - this.player.displayHeight - reaction.bubbleHeight - 16);
+    const marks = this.reactionMarks;
+    const left = reaction.x - 14;
+    const right = reaction.x + reaction.bubbleWidth + 10;
+    const top = reaction.y + 8;
+    marks.clear().fillStyle(0xffd991, 1);
+    marks.fillRect(left + 3, top - 5, 3, 6).fillRect(left - 4, top + 4, 6, 3);
+    marks.fillRect(right, top - 5, 3, 6).fillRect(right + 4, top + 4, 6, 3);
+    marks.setVisible(true).setAlpha(1);
+    if (!reduceMotion) this.tweens.add({ targets: marks, alpha: 0, delay: 260, duration: 260, ease: 'Sine.easeOut' });
+    this.time.delayedCall(LANTERN_PAUSE_MS, () => {
+      reaction.setVisible(false);
+      marks.setVisible(false);
+    });
+  }
+
+  makeLanternSwitch() {
+    const x = SECOND_LANTERN_X;
+    const hit = this.add.zone(x, lanternBaseY(x) - 8 * PIXEL, 14 * PIXEL, 21 * PIXEL).setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', () => this.activateLantern());
+    return hit;
+  }
+
+  activateLantern() {
+    if (!this.lanternHit?.input?.enabled) return;
+    this.lanternHit.disableInteractive();
+    sfx('lantern');
+    this.preserveLanternInput();
+    toggleGraveyardLighting();
+  }
+
+  preserveLanternInput() {
+    const keys = Object.values({ ...this.moveKeys, ...this.actionKeys });
+    const held = new Set(keys.filter((key) => key.isDown).map((key) => key.keyCode));
+    if (!held.size) return;
+    const onRelease = (event) => held.delete(event.keyCode);
+    const onBlur = () => held.clear();
+    window.addEventListener('keyup', onRelease);
+    window.addEventListener('blur', onBlur);
+    // The lighting switch restarts the scene and gives it new Phaser keys.
+    this.restoreLanternInput = () => {
+      window.removeEventListener('keyup', onRelease);
+      window.removeEventListener('blur', onBlur);
+      for (const key of Object.values({ ...this.moveKeys, ...this.actionKeys })) {
+        if (!held.has(key.keyCode)) continue;
+        key.isDown = true;
+        key.isUp = false;
+      }
+      this.restoreLanternInput = null;
+    };
   }
 
   walkTo(id) {
@@ -826,7 +911,7 @@ class MuseumScene extends Phaser.Scene {
     if (state.open) return;
     const k = { ...this.moveKeys, ...this.actionKeys };
     let blocked = focusIsInteractive();
-    // Walking with the arrow keys hands the keyboard back to the game (e.g. after clicking "Sound on"),
+    // Walking with the arrow keys hands the keyboard back to the game (e.g. after clicking "Music on"),
     // so Enter opens the door instead of pressing the focused button again.
     if (blocked && (k.left.isDown || k.right.isDown)) {
       focusGame();
@@ -848,9 +933,20 @@ class MuseumScene extends Phaser.Scene {
       dir = Math.sign(dx);
     }
 
+    if (this.playerReaction?.visible) dir = 0;
     if (dir) {
-      this.player.x = Phaser.Math.Clamp(this.player.x + (dir * SPEED * delta) / 1000, 40, this.worldW - 40);
+      const nextX = Phaser.Math.Clamp(this.player.x + (dir * SPEED * delta) / 1000, 40, this.worldW - 40);
       this.player.setFlipX(dir < 0);
+      const lanternStop = SECOND_LANTERN_X - dir * LANTERN_STOP_DISTANCE;
+      // Test crossing the approach point. Resuming from exactly that point cannot retrigger it.
+      if (this.snes && (lanternStop - this.player.x) * dir > 0 && (nextX - lanternStop) * dir >= 0) {
+        this.player.x = lanternStop;
+        this.reactAtLantern();
+        dir = 0;
+      } else this.player.x = nextX;
+    }
+
+    if (dir) {
       this.walkClock += delta;
       const step = (!this.snes || !reduceMotion) && Math.floor(this.walkClock / 150) % 2;
       this.player.setTexture(this.snes ? (step ? 'walker-step' : 'walker') : (step ? 'dev-b' : 'dev-a'));
@@ -860,13 +956,19 @@ class MuseumScene extends Phaser.Scene {
       this.walkClock = 0;
     }
     this.player.y = this.walkY(this.player.x);
+    if (this.night) this.updateDigButton();
     if (this.snes) this.playerShadow.setPosition(this.player.x, this.player.y - 2);
-    if (this.night) this.flyBat(time, delta);
+    if (this.night) this.updateFlyer(time, delta);
+
+    if (this.snes && !state.easterEggHintShown && dir > 0 && this.player.x > UNCLE_X + 140 && this.player.x < SECOND_LANTERN_X - LANTERN_STOP_DISTANCE) {
+      state.easterEggHintShown = true;
+      this.say(EASTER_EGG_HINT, 5000);
+    }
 
     // Uncle Gerd starts guiding once you walk past him, and trails a few steps behind.
     if (!this.guiding && this.player.x > UNCLE_X + 140) {
       this.guiding = true;
-      this.say(this.night ? 'Komm, Junge. Every stone has a story.' : 'Komm, Junge. Every room has a story.', 3500);
+      if (!this.snes) this.say(this.night ? 'Komm, Junge. Every stone has a story.' : 'Komm, Junge. Every room has a story.', 3500);
     }
     let uncleSteps = false;
     if (this.guiding) {
@@ -878,7 +980,7 @@ class MuseumScene extends Phaser.Scene {
         this.uncle.setFlipX(this.snes ? dx > 0 : dx < 0);
         uncleSteps = !reduceMotion && Math.floor(time / 160) % 2 === 1;
       }
-    } else if (time > this.nextChat && Math.abs(this.player.x - this.uncle.x) < 110 && !this.bubble.visible) {
+    } else if (!this.snes && time > this.nextChat && Math.abs(this.player.x - this.uncle.x) < 110 && !this.bubble.visible) {
       const lines = this.night ? NIGHT_LINES : UNCLE_LINES;
       this.say(lines[this.chatIndex++ % lines.length]);
       this.nextChat = time + 9000;
@@ -904,9 +1006,32 @@ class MuseumScene extends Phaser.Scene {
     }
 
     // Evaluate every key so their "just pressed" flags reset each frame.
-    const pressed = [k.up, k.w, k.e, k.enter, k.space].map((key) => Phaser.Input.Keyboard.JustDown(key));
-    const actionPressed = pressed[0] || (!blocked && pressed.slice(1).some(Boolean));
+    const [up, enter, ...other] = [k.up, k.enter, k.w, k.e, k.space].map((key) => Phaser.Input.Keyboard.JustDown(key));
+    const interact = up || (!blocked && enter);
+    const actionPressed = interact || (!blocked && other.some(Boolean));
     if (actionPressed && near) openRoom(near.ex.id);
+    else if (interact && this.lanternHit && Math.abs(this.player.x - SECOND_LANTERN_X) <= LANTERN_INTERACTION_DISTANCE) this.activateLantern();
+  }
+
+  updateDigButton() {
+    const centered = Math.abs(this.player.x - GRAVEYARD_ENTRANCE_X) <= DIG_BUTTON_CENTER_RADIUS;
+    if (centered === this.underDigButton) return;
+    this.underDigButton = centered;
+    const button = this.digButton;
+    if (reduceMotion) {
+      button.attention = centered ? 1 : 0;
+      button.draw();
+    } else if (centered && !this.digButtonPulse?.isPlaying()) {
+      this.digButtonPulse = this.tweens.add({
+        targets: button,
+        attention: 1,
+        duration: 220,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: 1,
+        onUpdate: () => button.draw(),
+      });
+    }
   }
 
   // Idle life: both blink now and then, Uncle Gerd's moustache twitches, and wiggles while he talks.
@@ -946,7 +1071,7 @@ class MuseumScene extends Phaser.Scene {
 }
 
 // ---------- the room ----------
-function openRoom(id) {
+function openRoom(id, { playSound = true } = {}) {
   const ex = state.data.exhibits.find((e) => e.id === id);
   if (!ex) return;
   state.open = id;
@@ -955,7 +1080,7 @@ function openRoom(id) {
   if (!dlg.open) {
     dlg.showModal();
     zoomRoom(id, 'in');
-    sfx('door');
+    if (playSound) sfx('door');
   }
   history.replaceState(null, '', `${location.pathname}${location.search}#room=${encodeURIComponent(id)}`);
   if (ex.revival?.status === 'reviving') startPolling();
@@ -1295,7 +1420,7 @@ function applyTheme() {
   const place = PLACE[state.theme];
   document.getElementById('site-place').textContent = place;
   document.getElementById('game').setAttribute('aria-label', night()
-    ? 'The graveyard trail. Walk with the left and right arrow keys, or visit a grave with the up arrow. Press B to switch graphics styles, N for light or dark mode, or L for all graveyards.'
+    ? 'The graveyard trail. Walk with the left and right arrow keys, or visit a grave with the up arrow. Press B to switch graphics styles or L for all graveyards.'
     : 'The museum hallway. Walk with the left and right arrow keys, or enter a room with the up arrow. Press L for all graveyards.');
   // (read the guest name from the URL here: this runs before GUEST is declared further down)
   const guest = decodeURIComponent(location.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1] || '');
@@ -1331,20 +1456,19 @@ function setTheme(theme, style = state.graveyardStyle, lighting = state.lighting
 
 applyTheme();
 
-// ---------- sound (off by default) ----------
+// ---------- audio (music off by default) ----------
 onSoundChange(() => state.scene?.refreshHud());
 // Clicking into the hallway also gives it the keyboard.
 document.getElementById('game').addEventListener('pointerdown', () => {
   if (!document.querySelector('dialog[open]')) focusGame();
 });
-// Shortcuts: M sound, T theme, B graveyard style, N lighting, G dig up your own graveyard.
+// Shortcuts: M music, T theme, B graveyard style, G dig up your own graveyard.
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, dialog')) return;
   const key = e.key.toLowerCase();
   if (key === 'm') setSound(!isSoundOn());
   if (key === 't') setTheme(night() ? 'museum' : 'graveyard');
   if (key === 'b' && night()) setTheme('graveyard', snes() ? '8bit' : 'snes');
-  if (key === 'n' && night()) toggleGraveyardLighting();
   if (key === 'g') openDigDialog();
   if (key === 'h' || key === '?') openHelp();
   if (key === 'l') openGuestsDialog();
@@ -1649,7 +1773,7 @@ async function boot() {
   renderList();
   await fontsReady();
   const deepLink = decodeURIComponent(location.hash.match(/^#room=([\w-]+)/)?.[1] || '');
-  if (deepLink) openRoom(deepLink);
+  if (deepLink) openRoom(deepLink, { playSound: false });
   if (!window.Phaser) {
     toast('The game engine did not load, so here is the list of exhibits.');
     toggleList(true);

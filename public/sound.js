@@ -43,6 +43,7 @@ const ARPS = [
 let ctx = null;
 let master = null;
 let mix = null;
+let effects = null;
 let noise = null;
 const pulses = {};
 let enabled = false;
@@ -74,9 +75,13 @@ function ensureContext() {
   return buildGraph();
 }
 
+function resumeAudio() {
+  if (ctx.state !== 'running') ctx.resume().catch(() => {});
+}
+
 // Renders the soundtrack offline (used to export a preview WAV, never during normal visits).
 export function renderOffline(seconds = 20, sampleRate = 44100, style = '8bit') {
-  const saved = [ctx, master, mix, noise, { ...pulses }];
+  const saved = [ctx, master, mix, effects, noise, { ...pulses }];
   try {
     ctx = new OfflineAudioContext(2, Math.ceil(sampleRate * seconds), sampleRate);
     buildGraph();
@@ -84,8 +89,8 @@ export function renderOffline(seconds = 20, sampleRate = 44100, style = '8bit') 
     for (let i = 0, t = 0.05; t < seconds; i++, t += STEP) scheduleStep(style, i, t);
     return ctx.startRendering();
   } finally {
-    [ctx, master, mix, noise] = saved;
-    Object.assign(pulses, saved[4]);
+    [ctx, master, mix, effects, noise] = saved;
+    Object.assign(pulses, saved[5]);
   }
 }
 
@@ -106,6 +111,7 @@ function buildGraph() {
   tone.type = 'lowpass';
   tone.frequency.value = 5200;
   master.connect(tone).connect(ctx.destination);
+  effects = makeMix(MIX_LEVEL[soundStyle]);
   pulses[0.125] = pulseWave(0.125);
   pulses[0.25] = pulseWave(0.25);
   pulses[0.5] = pulseWave(0.5);
@@ -127,7 +133,7 @@ function makeMix(level = 1) {
   return gain;
 }
 
-function voice(freq, t, len, { wave = 'triangle', duty = 0.5, volume = 0.3, decay = null, slideTo = null }) {
+function voice(freq, t, len, { wave = 'triangle', duty = 0.5, volume = 0.3, decay = null, slideTo = null, output = mix }) {
   const osc = ctx.createOscillator();
   if (wave === 'pulse') osc.setPeriodicWave(pulses[duty]);
   else osc.type = wave;
@@ -140,7 +146,7 @@ function voice(freq, t, len, { wave = 'triangle', duty = 0.5, volume = 0.3, deca
     g.gain.setValueAtTime(volume, t + len * 0.85);
     g.gain.linearRampToValueAtTime(0, t + len);
   }
-  osc.connect(g).connect(mix);
+  osc.connect(g).connect(output);
   osc.start(t);
   osc.stop(t + Math.max(len, decay || 0) + 0.02);
 }
@@ -204,9 +210,9 @@ function scheduleClassicStep(i, t) {
   }
 }
 
-function sampled(instrument, note, time, length, volume, pan = 0, slideTo) {
+function sampled(instrument, note, time, length, volume, { pan = 0, slideTo, output = mix } = {}) {
   const frequency = note ? NOTE(note) : 220;
-  playSample(ctx, mix, instrument, frequency, time, length, { volume, pan, slideTo });
+  playSample(ctx, output, instrument, frequency, time, length, { volume, pan, slideTo });
 }
 
 function scheduleSnesStep(i, t) {
@@ -216,15 +222,15 @@ function scheduleSnesStep(i, t) {
   const bass = BASS[bar][s];
   const lead = MELODY[bar][s];
   if (s === 0) {
-    chord.slice(0, 3).forEach((note, index) => sampled('strings', note, t, STEP * 15.9, 0.095, (index - 1) * 0.28));
-    if (bar === 0) sampled('chime', 'D5', t, 0.9, 0.13, 0.24);
+    chord.slice(0, 3).forEach((note, index) => sampled('strings', note, t, STEP * 15.9, 0.095, { pan: (index - 1) * 0.28 }));
+    if (bar === 0) sampled('chime', 'D5', t, 0.9, 0.13, { pan: 0.24 });
   }
   if (bass !== '.') sampled('bass', bass, t, noteLength(BASS[bar], s, 4) * 0.94, 0.37);
-  if (lead !== '.') sampled('flute', lead, t, noteLength(MELODY[bar], s, 8) * 0.85, 0.22, -0.2);
-  if (s % 2 === 0) sampled('mallet', chord[(s / 2) % chord.length], t, STEP * 1.8, s % 4 === 0 ? 0.15 : 0.1, 0.35);
+  if (lead !== '.') sampled('flute', lead, t, noteLength(MELODY[bar], s, 8) * 0.85, 0.22, { pan: -0.2 });
+  if (s % 2 === 0) sampled('mallet', chord[(s / 2) % chord.length], t, STEP * 1.8, s % 4 === 0 ? 0.15 : 0.1, { pan: 0.35 });
   if (s === 0 || s === 8) sampled('kick', null, t, 0.25, 0.3);
-  if (s === 4 || s === 12) sampled('rim', null, t, 0.16, 0.2, -0.14);
-  if (s % 4 === 2) sampled('brush', null, t, 0.1, 0.1, 0.3);
+  if (s === 4 || s === 12) sampled('rim', null, t, 0.16, 0.2, { pan: -0.14 });
+  if (s % 4 === 2) sampled('brush', null, t, 0.1, 0.1, { pan: 0.3 });
 }
 
 function scheduleStep(style, i, t) {
@@ -250,7 +256,7 @@ function tick() {
 function startMusic() {
   if (!ensureContext() || timer) return;
   mix = makeMix(MIX_LEVEL[soundStyle]);
-  ctx.resume();
+  resumeAudio();
   nextTime = ctx.currentTime + 0.06;
   step = 0;
   timer = setInterval(tick, 25);
@@ -261,12 +267,12 @@ function stopMusic() {
   timer = null;
   mix?.disconnect();
   mix = null;
-  if (ctx) ctx.suspend();
 }
 
 export function setSoundStyle(style) {
   if (style === soundStyle) return;
   soundStyle = style;
+  if (effects) effects.gain.value = MIX_LEVEL[style];
   if (!mix || !timer) return;
   const oldMix = mix;
   const now = ctx.currentTime;
@@ -299,43 +305,48 @@ export function onSoundChange(fn) {
   listeners.add(fn);
 }
 
-// Short effects, only when the visitor has turned sound on.
+// Direct interaction speaks independently of the soundtrack.
 export function sfx(name) {
-  if (!enabled || !mix) return;
+  if (name !== 'lantern' && name !== 'door' && (!enabled || !mix)) return;
+  if (!ensureContext()) return;
+  resumeAudio();
   const t = ctx.currentTime + 0.01;
+  const output = effects;
   if (soundStyle === 'snes') {
-    if (name === 'door') {
-      sampled('wood', 'C3', t, 0.36, 0.33, 0, NOTE('G2'));
+    if (name === 'lantern') {
+      sampled('switch', null, t, 0.08, 0.6, { output });
+    } else if (name === 'door') {
+      sampled('wood', 'C3', t, 0.36, 0.33, { output, slideTo: NOTE('G2') });
     } else if (name === 'alive') {
-      ['D4', 'F4', 'A4', 'D5', 'F#5'].forEach((note, i) => sampled('chime', note, t + i * 0.09, 0.48, 0.28));
+      ['D4', 'F4', 'A4', 'D5', 'F#5'].forEach((note, i) => sampled('chime', note, t + i * 0.09, 0.48, 0.28, { output }));
     } else if (name === 'dead') {
-      sampled('mallet', 'Eb3', t, 0.26, 0.29);
-      sampled('bass', 'D3', t + 0.23, 0.85, 0.34, 0, NOTE('D2'));
+      sampled('mallet', 'Eb3', t, 0.26, 0.29, { output });
+      sampled('bass', 'D3', t + 0.23, 0.85, 0.34, { output, slideTo: NOTE('D2') });
     }
     return;
   }
   if (name === 'door') {
     // A creaking door: a low pulse bending down.
-    voice(NOTE('A2'), t, 0.35, { wave: 'pulse', duty: 0.125, volume: 0.18, slideTo: NOTE('F2') });
+    voice(NOTE('A2'), t, 0.35, { output, wave: 'pulse', duty: 0.125, volume: 0.18, slideTo: NOTE('F2') });
   } else if (name === 'alive') {
     // Minor arpeggio that resolves to major: life returns.
-    ['D4', 'F4', 'A4', 'D5', 'F#5'].forEach((n, i) => voice(NOTE(n), t + i * 0.09, 0.2, { wave: 'pulse', duty: 0.25, volume: 0.14, decay: 0.25 }));
+    ['D4', 'F4', 'A4', 'D5', 'F#5'].forEach((n, i) => voice(NOTE(n), t + i * 0.09, 0.2, { output, wave: 'pulse', duty: 0.25, volume: 0.14, decay: 0.25 }));
   } else if (name === 'dead') {
-    voice(NOTE('Eb3'), t, 0.25, { wave: 'pulse', duty: 0.5, volume: 0.15, decay: 0.3 });
-    voice(NOTE('D3'), t + 0.3, 1.1, { wave: 'pulse', duty: 0.5, volume: 0.15, slideTo: NOTE('D2') });
+    voice(NOTE('Eb3'), t, 0.25, { output, wave: 'pulse', duty: 0.5, volume: 0.15, decay: 0.3 });
+    voice(NOTE('D3'), t + 0.3, 1.1, { output, wave: 'pulse', duty: 0.5, volume: 0.15, slideTo: NOTE('D2') });
   }
 }
 
-// A stored "on" preference can only start audio after the first user gesture (browser autoplay rules).
+// Unlock audio on the first gesture, including effects triggered after an auto-walk.
 export function initSound() {
-  if (!readPref()) return;
-  enabled = true;
+  enabled = readPref();
   const resume = () => {
-    window.removeEventListener('pointerdown', resume);
-    window.removeEventListener('keydown', resume);
+    window.removeEventListener('pointerdown', resume, true);
+    window.removeEventListener('keydown', resume, true);
     if (enabled) startMusic();
+    else if (ensureContext()) resumeAudio();
   };
-  window.addEventListener('pointerdown', resume);
-  window.addEventListener('keydown', resume);
-  for (const fn of listeners) fn(true);
+  window.addEventListener('pointerdown', resume, true);
+  window.addEventListener('keydown', resume, true);
+  if (enabled) for (const fn of listeners) fn(true);
 }

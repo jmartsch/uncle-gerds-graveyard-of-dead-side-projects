@@ -214,3 +214,32 @@ export const BAT_DOWN = [
   'vv.v....v.vv',
   'v..........v',
 ];
+
+// A small, right-facing robin. Its head stays in place during the wingbeat.
+export const BIRD_UP = [
+  '.....kk',
+  '....kCck',
+  '....kcCck...kk',
+  '.....kcCCk.kcck',
+  '..kkk.kCCkkcckky',
+  '.kCCckccCCCCwwk',
+  '..kkccCVVVwwwk',
+  '....kkVVVVwwk',
+  '......kkkkkk',
+  '',
+  '',
+].map((row) => row.padEnd(16, '.'));
+
+export const BIRD_DOWN = [
+  '',
+  '',
+  '............kk',
+  '...........kcck',
+  '..kkk..kkkkcckky',
+  '.kCCckccCCCCwwk',
+  '..kkcccCCCCwwk',
+  '....kkcCCVVwk',
+  '....kcCCkkkk',
+  '...kCCkk',
+  '....kk',
+].map((row) => row.padEnd(16, '.'));

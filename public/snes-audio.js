@@ -20,6 +20,7 @@ const instruments = {
   rim: [0.22, (t, p, noise) => 0.65 * noise * Math.exp(-34 * t) + 0.28 * Math.sin(p * 1.73) * Math.exp(-28 * t)],
   brush: [0.13, (t, _p, noise) => noise * Math.exp(-72 * t)],
   wood: [0.55, (t, p, noise) => (0.47 * Math.sin(p) + 0.27 * Math.sin(1.62 * p) + 0.12 * noise) * Math.exp(-8 * t)],
+  switch: [0.08, (t, p, noise) => (0.55 * noise + 0.45 * Math.sin(5.3 * p)) * Math.exp(-100 * t)],
 };
 
 function getSample(ctx, name) {

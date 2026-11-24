@@ -5,6 +5,10 @@ const CHUNK = 192;
 const BLEED = 64;
 const CAVE_X = 151;
 const CAVE_Y = 75;
+const FIRST_LANTERN = 78;
+const LANTERN_GAP = 196;
+const SECOND_LANTERN = 366;
+export const SECOND_LANTERN_X = SECOND_LANTERN * PIXEL;
 const PALETTES = {
   light: {
     grass: ['#426e55', '#477759', '#4c7c5c', '#527f5d', '#568660'],
@@ -28,6 +32,8 @@ export function gravePathY(x) {
   const tileX = x / PIXEL;
   return PIXEL * Math.round(142 + 8 * Math.sin(tileX / 34 - 0.8) + 4 * Math.sin(tileX / 17 + 0.2));
 }
+
+export const lanternBaseY = (x) => gravePathY(x) - 11 * PIXEL;
 
 function random(seed) {
   let value = seed >>> 0;
@@ -143,15 +149,17 @@ function pathAt(x, y) {
   return Math.max(trail, branch);
 }
 
-function lantern(ctx, x, y) {
-  ellipse(ctx, 'rgb(239 164 76 / 0.14)', x, y - 3, 18, 9);
-  ellipse(ctx, 'rgb(255 176 79 / 0.2)', x, y - 3, 11, 6);
-  ellipse(ctx, '#373344', x, y + 1, 5, 2);
+function lantern(ctx, x, y, lit) {
+  if (lit) {
+    ellipse(ctx, 'rgb(239 164 76 / 0.14)', x, y - 3, 18, 9);
+    ellipse(ctx, 'rgb(255 176 79 / 0.2)', x, y - 3, 11, 6);
+  }
+  ellipse(ctx, lit ? '#373344' : '#79563b', x, y + 1, 5, 2);
   rect(ctx, '#332b3c', x - 1, y - 11, 3, 12);
   rect(ctx, '#292639', x - 4, y - 17, 9, 2);
   rect(ctx, '#352b35', x - 3, y - 15, 7, 7);
-  rect(ctx, '#c78454', x - 2, y - 14, 5, 5);
-  rect(ctx, '#ffdb91', x - 1, y - 14, 3, 4);
+  rect(ctx, lit ? '#c78454' : '#806a51', x - 2, y - 14, 5, 5);
+  rect(ctx, lit ? '#ffdb91' : '#c1ab88', x - 1, y - 14, 3, 4);
 }
 
 function graveyardChunk(start, width, height, lighting) {
@@ -217,10 +225,11 @@ function graveyardChunk(start, width, height, lighting) {
   for (let x = Math.floor((start - BLEED) / 196) * 196; x < end + BLEED; x += 196) {
     ridge(ctx, x + 139, x + 184, (p) => Math.max(gravePathY(p * PIXEL) / PIXEL + 18, 166 + Math.floor(7 * Math.sin(p / 11))), 20, x + 120, colors);
   }
-  if (lighting === 'dark') {
-    for (let x = 78 + 196 * Math.max(0, Math.floor((start - BLEED - 78) / 196)); x < end + BLEED; x += 196) {
-      lantern(ctx, x, gravePathY(x * PIXEL) / PIXEL - 11);
-    }
+  const firstLanternInChunk = Math.max(0, Math.floor((start - BLEED - FIRST_LANTERN) / LANTERN_GAP));
+  for (let i = firstLanternInChunk; ; i++) {
+    const x = i === 1 ? SECOND_LANTERN : FIRST_LANTERN + i * LANTERN_GAP;
+    if (x >= end + BLEED) break;
+    lantern(ctx, x, lanternBaseY(x * PIXEL) / PIXEL, lighting === 'dark');
   }
   return canvas;
 }
