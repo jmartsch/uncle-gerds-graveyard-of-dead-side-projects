@@ -22,7 +22,12 @@
         "line": "Ach, Junge. Forty days of commits and then \"tomorrow just the layout\". In 1998 we finished things. Mostly.",
         "mood": "told_you_so"
       },
-      "odds": { "revival": 0.71, "worthIt": 0.44, "moodConfidence": 0.82, "model": "jev-latest (demo)" },
+      "odds": {
+        "revival": 0.71,
+        "worthIt": 0.44,
+        "moodConfidence": 0.82,
+        "model": "jev-latest (demo)"
+      },
       "quest": {
         "title": "#3 Mobile layout breaks below 400px",
         "url": null,
@@ -30,11 +35,36 @@
         "why": "It is the bug that stopped you, so it is the bug that brings you back."
       },
       "artifacts": [
-        { "kind": "commit", "label": "tomorrow just the layout", "date": "2022-04-11T23:48:00Z", "url": null },
-        { "kind": "commit", "label": "add berlin, again", "date": "2022-04-09T21:02:00Z", "url": null },
-        { "kind": "commit", "label": "api key in env now (sorry)", "date": "2022-04-02T18:30:00Z", "url": null },
-        { "kind": "issue", "label": "#3 Mobile layout breaks below 400px", "date": "2022-04-10T08:00:00Z", "url": null },
-        { "kind": "issue", "label": "#4 Dark mode?", "date": "2022-04-11T09:00:00Z", "url": null }
+        {
+          "kind": "commit",
+          "label": "tomorrow just the layout",
+          "date": "2022-04-11T23:48:00Z",
+          "url": null
+        },
+        {
+          "kind": "commit",
+          "label": "add berlin, again",
+          "date": "2022-04-09T21:02:00Z",
+          "url": null
+        },
+        {
+          "kind": "commit",
+          "label": "api key in env now (sorry)",
+          "date": "2022-04-02T18:30:00Z",
+          "url": null
+        },
+        {
+          "kind": "issue",
+          "label": "#3 Mobile layout breaks below 400px",
+          "date": "2022-04-10T08:00:00Z",
+          "url": null
+        },
+        {
+          "kind": "issue",
+          "label": "#4 Dark mode?",
+          "date": "2022-04-11T09:00:00Z",
+          "url": null
+        }
       ],
       "textSource": "demo"
     },
@@ -58,7 +88,12 @@
         "line": "A habit tracker that lasted eighteen days. Na ja, that is still longer than my diet.",
         "mood": "nostalgic"
       },
-      "odds": { "revival": 0.38, "worthIt": 0.27, "moodConfidence": 0.64, "model": "jev-latest (demo)" },
+      "odds": {
+        "revival": 0.38,
+        "worthIt": 0.27,
+        "moodConfidence": 0.64,
+        "model": "jev-latest (demo)"
+      },
       "quest": {
         "title": "#1 Streak counter resets at midnight UTC",
         "url": null,
@@ -66,9 +101,24 @@
         "why": "One timezone fix and the streaks finally mean something."
       },
       "artifacts": [
-        { "kind": "commit", "label": "wip: streaks", "date": "2021-01-19T22:10:00Z", "url": null },
-        { "kind": "commit", "label": "confetti when you complete a habit", "date": "2021-01-12T20:41:00Z", "url": null },
-        { "kind": "issue", "label": "#1 Streak counter resets at midnight UTC", "date": "2021-01-18T07:00:00Z", "url": null }
+        {
+          "kind": "commit",
+          "label": "wip: streaks",
+          "date": "2021-01-19T22:10:00Z",
+          "url": null
+        },
+        {
+          "kind": "commit",
+          "label": "confetti when you complete a habit",
+          "date": "2021-01-12T20:41:00Z",
+          "url": null
+        },
+        {
+          "kind": "issue",
+          "label": "#1 Streak counter resets at midnight UTC",
+          "date": "2021-01-18T07:00:00Z",
+          "url": null
+        }
       ],
       "textSource": "demo"
     },
@@ -92,7 +142,12 @@
         "line": "Forty-seven rounds against the borrow checker. Respect, Junge. But the shell script still works, ja?",
         "mood": "baffled"
       },
-      "odds": { "revival": 0.12, "worthIt": 0.09, "moodConfidence": 0.71, "model": "jev-latest (demo)" },
+      "odds": {
+        "revival": 0.12,
+        "worthIt": 0.09,
+        "moodConfidence": 0.71,
+        "model": "jev-latest (demo)"
+      },
       "quest": {
         "title": "Make it start again on a modern runtime",
         "url": null,
@@ -100,9 +155,168 @@
         "why": "There are no open issues. There is also no working code. Start there."
       },
       "artifacts": [
-        { "kind": "commit", "label": "fight the borrow checker, round 47", "date": "2023-06-24T01:15:00Z", "url": null },
-        { "kind": "commit", "label": "clone everything, ask questions later", "date": "2023-06-20T23:59:00Z", "url": null },
-        { "kind": "commit", "label": "initial commit (blazingly fast)", "date": "2023-06-03T09:00:00Z", "url": null }
+        {
+          "kind": "commit",
+          "label": "fight the borrow checker, round 47",
+          "date": "2023-06-24T01:15:00Z",
+          "url": null
+        },
+        {
+          "kind": "commit",
+          "label": "clone everything, ask questions later",
+          "date": "2023-06-20T23:59:00Z",
+          "url": null
+        },
+        {
+          "kind": "commit",
+          "label": "initial commit (blazingly fast)",
+          "date": "2023-06-03T09:00:00Z",
+          "url": null
+        }
+      ],
+      "textSource": "demo"
+    },
+    {
+      "id": "todo-app-final-v2",
+      "repo": "you/todo-app-final-v2",
+      "url": "https://github.com",
+      "private": false,
+      "title": "The Todo App (Final v2)",
+      "years": "2021–2021",
+      "born": "2021-01-10T10:00:00Z",
+      "died": "2021-02-02T22:10:00Z",
+      "lifespanDays": 23,
+      "language": "TypeScript",
+      "stars": 1,
+      "openIssues": 2,
+      "lastWords": "final final v2",
+      "causeOfDeath": "Version 3 was already planned.",
+      "plaque": "A todo app whose only completed task was creating itself.",
+      "uncle": {
+        "line": "Ach, Junge. Drei Rewrites, null Nutzer. Das nenne ich Konsequenz.",
+        "mood": "told_you_so"
+      },
+      "odds": {
+        "revival": 0.55,
+        "worthIt": 0.3,
+        "moodConfidence": 0.8,
+        "model": "jev-latest (demo)"
+      },
+      "quest": {
+        "title": "#2 Persist todos across reloads",
+        "url": null,
+        "kind": "issue",
+        "why": "It is the bug that stopped you, so it is the bug that brings you back."
+      },
+      "artifacts": [
+        {
+          "kind": "commit",
+          "label": "final final v2",
+          "date": "2021-02-02T22:10:00Z",
+          "url": null
+        },
+        {
+          "kind": "issue",
+          "label": "#2 Persist todos across reloads",
+          "date": "2021-02-02T22:10:00Z",
+          "url": null
+        }
+      ],
+      "textSource": "demo"
+    },
+    {
+      "id": "chat-bot-for-everything",
+      "repo": "you/chat-bot-for-everything",
+      "url": "https://github.com",
+      "private": false,
+      "title": "Chat Bot For Everything",
+      "years": "2023–2023",
+      "born": "2023-05-01T09:00:00Z",
+      "died": "2023-06-18T20:30:00Z",
+      "lifespanDays": 48,
+      "language": "Python",
+      "stars": 7,
+      "openIssues": 5,
+      "lastWords": "works on my machine",
+      "causeOfDeath": "The API key expired. So did the motivation.",
+      "plaque": "A bot that was meant to answer everything. It answered hello.",
+      "uncle": {
+        "line": "In meiner Zeit hieß das Eliza. Die hat wenigstens zugehört.",
+        "mood": "nostalgic"
+      },
+      "odds": {
+        "revival": 0.62,
+        "worthIt": 0.51,
+        "moodConfidence": 0.8,
+        "model": "jev-latest (demo)"
+      },
+      "quest": {
+        "title": "#5 Handle rate limits",
+        "url": null,
+        "kind": "issue",
+        "why": "It is the bug that stopped you, so it is the bug that brings you back."
+      },
+      "artifacts": [
+        {
+          "kind": "commit",
+          "label": "works on my machine",
+          "date": "2023-06-18T20:30:00Z",
+          "url": null
+        },
+        {
+          "kind": "issue",
+          "label": "#5 Handle rate limits",
+          "date": "2023-06-18T20:30:00Z",
+          "url": null
+        }
+      ],
+      "textSource": "demo"
+    },
+    {
+      "id": "pixel-cat-game",
+      "repo": "you/pixel-cat-game",
+      "url": "https://github.com",
+      "private": false,
+      "title": "Pixel Cat Game",
+      "years": "2020–2020",
+      "born": "2020-08-03T14:00:00Z",
+      "died": "2020-08-30T01:15:00Z",
+      "lifespanDays": 27,
+      "language": "C#",
+      "stars": 12,
+      "openIssues": 3,
+      "lastWords": "cat can jump now",
+      "causeOfDeath": "The cat could jump. Nothing else could.",
+      "plaque": "A platformer with one cat, one level and no way to win.",
+      "uncle": {
+        "line": "Die Katze springt, der Entwickler nicht mehr. Schade, Junge.",
+        "mood": "bittersweet"
+      },
+      "odds": {
+        "revival": 0.8,
+        "worthIt": 0.62,
+        "moodConfidence": 0.8,
+        "model": "jev-latest (demo)"
+      },
+      "quest": {
+        "title": "#1 Add a goal to level one",
+        "url": null,
+        "kind": "issue",
+        "why": "It is the bug that stopped you, so it is the bug that brings you back."
+      },
+      "artifacts": [
+        {
+          "kind": "commit",
+          "label": "cat can jump now",
+          "date": "2020-08-30T01:15:00Z",
+          "url": null
+        },
+        {
+          "kind": "issue",
+          "label": "#1 Add a goal to level one",
+          "date": "2020-08-30T01:15:00Z",
+          "url": null
+        }
       ],
       "textSource": "demo"
     }
