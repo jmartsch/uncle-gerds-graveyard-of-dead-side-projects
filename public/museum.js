@@ -1,5 +1,6 @@
 import { DEV_A, DEV_B, DEV_BLINK, UNCLE, UNCLE_BLINK, UNCLE_TWITCH, UNCLE_TWITCH_BLINK, UNCLE_TAP, UNCLE_TAP_BLINK, DOOR, TOMB, BAT_UP, BAT_DOWN, PALETTE, paintPixels } from './pixels.js';
-import { sfx, setSound, isSoundOn, onSoundChange, initSound } from './sound.js';
+import { addGraveyardTerrain, gravePathY, GRAVE_SPRITES, PIXEL } from './graveyard-art.js';
+import { sfx, setSound, setSoundStyle, isSoundOn, onSoundChange, initSound } from './sound.js';
 
 // ---------- constants ----------
 const W = 960;
@@ -53,8 +54,19 @@ function doorQuip(ex, index) {
 }
 
 // ---------- state ----------
-const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), lastX: null };
+const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lastX: null };
 const night = () => state.theme === 'graveyard';
+const snes = () => night() && state.graveyardStyle === 'snes';
+
+function readGraveyardStyle() {
+  const fromUrl = new URLSearchParams(location.search).get('style');
+  if (fromUrl === '8bit' || fromUrl === 'snes') return fromUrl;
+  try {
+    return localStorage.getItem('ugm-graveyard-style') === '8bit' ? '8bit' : 'snes';
+  } catch {
+    return 'snes';
+  }
+}
 
 function readTheme() {
   const fromUrl = new URLSearchParams(location.search).get('theme');
@@ -164,26 +176,40 @@ class MuseumScene extends Phaser.Scene {
     this.makeTexture('uncle-twitch', UNCLE_TWITCH);
     this.makeTexture('uncle-twitch-blink', UNCLE_TWITCH_BLINK);
     this.makeTexture('door', DOOR);
-    this.makeTexture('tomb', TOMB);
     this.makeTexture('bat-up', BAT_UP);
     this.makeTexture('bat-down', BAT_DOWN);
 
     this.night = night();
-    if (this.night) {
-      this.drawNight();
+    this.snes = snes();
+    this.uncleShadow = null;
+    if (this.snes) {
+      for (const [key, rows] of Object.entries(GRAVE_SPRITES)) this.makeTexture(key, rows);
+      addGraveyardTerrain(this, this.worldW, H);
       this.drawGraveEntrance();
+    } else if (this.night) {
+      this.makeTexture('tomb', TOMB);
+      this.drawClassicNight();
+      this.drawClassicEntrance();
     } else {
       this.drawHall();
       this.drawEntrance();
     }
     this.doors = exhibits.map((ex, i) => this.drawDoor(ex, FIRST_DOOR + i * DOOR_GAP));
-    if (this.night) this.drawCrypt(this.worldW - 230);
-    else this.drawGiftShop(this.worldW - 230);
+    const shopX = this.worldW - 230;
+    if (this.snes) this.drawCrypt(shopX);
+    else if (this.night) this.drawClassicCrypt(shopX);
+    else this.drawGiftShop(shopX);
 
     // Coming back from a theme switch: stand where you stood, with Uncle Gerd already guiding.
     const startX = state.lastX ?? 150;
-    this.uncle = this.add.image(startX > UNCLE_X + 140 ? startX - 110 : UNCLE_X, FLOOR, 'uncle').setOrigin(0.5, 1).setScale(SCALE).setDepth(4);
-    this.player = this.add.image(startX, FLOOR, 'dev-a').setOrigin(0.5, 1).setScale(SCALE).setDepth(5);
+    const uncleX = startX > UNCLE_X + 140 ? startX - 110 : UNCLE_X;
+    const scale = this.snes ? PIXEL : SCALE;
+    this.uncle = this.add.image(uncleX, this.walkY(uncleX), this.snes ? 'guide' : 'uncle').setOrigin(0.5, 1).setScale(scale).setDepth(4);
+    this.player = this.add.image(startX, this.walkY(startX), this.snes ? 'walker' : 'dev-a').setOrigin(0.5, 1).setScale(scale).setDepth(5);
+    if (this.snes) {
+      this.uncleShadow = this.add.ellipse(uncleX, this.uncle.y - 2, 52, 14, 0x44352b, 0.46).setDepth(2);
+      this.playerShadow = this.add.ellipse(startX, this.player.y - 2, 48, 13, 0x44352b, 0.46).setDepth(2);
+    }
     this.bubble = this.makeBubble();
     this.makeHud();
     this.drawGroundHints();
@@ -207,6 +233,10 @@ class MuseumScene extends Phaser.Scene {
     this.nextChat = 0;
     this.idle = { devBlinkAt: 1500, devBlinkUntil: 0, uncleBlinkAt: 2600, uncleBlinkUntil: 0, twitchAt: 4000, twitchUntil: 0 };
     if (state.open) this.pauseInput(true); // a room was opened via deep link before the hallway existed
+  }
+
+  walkY(x) {
+    return this.snes ? gravePathY(x) : FLOOR;
   }
 
   makeTexture(key, rows) {
@@ -262,7 +292,7 @@ class MuseumScene extends Phaser.Scene {
   // ---------- buttons inside the game ----------
   // x < 0 means "from the right edge". fixed buttons stay put on screen, the others live in the world.
   makeButton(x, y, label, onClick, { fixed = true, anchor = 'left', size = 8, active = false, depth = 30 } = {}) {
-    const night = this.night;
+    const classic = this.night && !this.snes;
     const text = this.add.text(0, 0, label, textStyle(FONT_PIXEL, size, '#1a1016')).setDepth(depth + 1);
     const padX = 8;
     const padY = 7;
@@ -273,15 +303,16 @@ class MuseumScene extends Phaser.Scene {
     text.setPosition(left + padX, y + padY);
     const zone = this.add.zone(left, y, w, h).setOrigin(0).setDepth(depth + 2).setInteractive({ useHandCursor: true });
     if (fixed) for (const o of [bg, text, zone]) o.setScrollFactor(0);
-    const accent = night ? 0xc9c4e6 : 0xd9a441;
+    const accent = this.snes ? 0xd1b081 : classic ? 0xc9c4e6 : 0xd9a441;
+    const background = this.snes ? 0x262b24 : classic ? 0x14101f : 0x1a1016;
     const btn = { w, h, active, hover: false, text };
     btn.draw = () => {
       const lit = btn.active || btn.hover;
       bg.clear();
       bg.fillStyle(0x000000, 0.4).fillRect(left + 4, y + 4, w, h);
       bg.fillStyle(accent, 1).fillRect(left - 3, y - 3, w + 6, h + 6);
-      bg.fillStyle(lit ? accent : night ? 0x14101f : 0x1a1016, 1).fillRect(left, y, w, h);
-      text.setColor(lit ? '#1a1016' : night ? '#e8e2ff' : '#f3e6c8');
+      bg.fillStyle(lit ? accent : background, 1).fillRect(left, y, w, h);
+      text.setColor(lit ? '#1a1016' : classic ? '#e8e2ff' : '#f3e6c8');
     };
     btn.setLabel = (l) => text.setText(l);
     zone.on('pointerover', () => {
@@ -299,9 +330,9 @@ class MuseumScene extends Phaser.Scene {
 
   // The basic controls and the Hacksgiving note, painted on the ground and fixed to the screen.
   drawGroundHints() {
-    const night = this.night;
-    const ink = night ? '#e8e2ff' : '#f3e6c8';
-    const accent = night ? 0xc9c4e6 : 0xd9a441;
+    const classic = this.night && !this.snes;
+    const ink = classic ? '#e8e2ff' : '#f3e6c8';
+    const accent = this.snes ? 0xd1b081 : classic ? 0xc9c4e6 : 0xd9a441;
     const line = this.add.container(0, 0).setScrollFactor(0).setDepth(25);
     const items = [['←'], ['→'], 'walk', null, ['↑'], 'enter', null, ['Esc'], 'leave'];
     const g = this.add.graphics();
@@ -327,35 +358,43 @@ class MuseumScene extends Phaser.Scene {
     }
     const offset = Math.round((W - x) / 2);
     line.x = offset;
-    // backdrop strip so the hints stay readable on the checkered floor
+    // Backdrop strip so the hints and credit stay readable over terrain.
     const strip = this.add.graphics().setScrollFactor(0).setDepth(24);
-    strip.fillStyle(night ? 0x000000 : 0x1a1016, night ? 0.45 : 0.9).fillRect(offset - 18, FLOOR + 12, x + 36, 70);
     for (const k of keys) {
       g.fillStyle(0x000000, 0.5).fillRect(k.x + 3, y - 12 + 3, k.w, 26);
       g.fillStyle(accent, 1).fillRect(k.x, y - 12, k.w, 26);
     }
     const note = this.add
-      .text(W / 2, FLOOR + 64, 'A personal agent living on a Fly.io Sprite · Built for Hacksgiving 2026', textStyle(FONT_BODY, 18, night ? '#a9a5c4' : '#c9c2b6'))
+      .text(W / 2, FLOOR + 64, 'A personal agent living on a Fly.io Sprite · Built for Hacksgiving 2026', textStyle(FONT_BODY, 18, this.snes ? '#d0c4aa' : classic ? '#a9a5c4' : '#c9c2b6'))
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(25)
       .setInteractive({ useHandCursor: true });
+    const stripWidth = (this.snes ? Math.max(x, note.width) : x) + 36;
+    strip.fillStyle(this.snes ? 0x1e2c26 : classic ? 0x000000 : 0x1a1016, classic ? 0.45 : 0.9)
+      .fillRect((W - stripWidth) / 2, FLOOR + 12, stripWidth, 70);
     note.on('pointerdown', () => window.open('https://fly.io/hacksgiving/', '_blank', 'noopener'));
   }
 
   makeHud() {
     const pad = 12;
     this.hud = {};
-    const sound = this.makeButton(-pad, pad, isSoundOn() ? 'SOUND ON ' : 'SOUND OFF', () => setSound(!isSoundOn()));
-    const museum = this.makeButton(-(pad + sound.w + 18), pad, 'MUSEUM', () => setTheme('museum'), { active: !this.night });
-    const grave = this.makeButton(-(pad + sound.w + 18 + museum.w + 6), pad, 'GRAVEYARD', () => setTheme('graveyard'), { active: this.night });
-    const help = this.makeButton(-(pad + sound.w + 18 + museum.w + 6 + grave.w + 18), pad, 'INSTRUCTIONS', (btn, pointer) =>
+    let right = pad;
+    const add = (label, onClick, { active = false, gap = 10 } = {}) => {
+      const button = this.makeButton(-right, pad, label, onClick, { active });
+      right += button.w + gap;
+      return button;
+    };
+    this.hud.sound = add(isSoundOn() ? 'SOUND ON ' : 'SOUND OFF', () => setSound(!isSoundOn()), { gap: 18 });
+    add('MUSEUM', () => setTheme('museum'), { active: !this.night, gap: 18 });
+    add('8-BIT', () => setTheme('graveyard', '8bit'), { active: this.night && !this.snes });
+    add('SNES', () => setTheme('graveyard', 'snes'), { active: this.snes, gap: 18 });
+    add('INSTRUCTIONS', (btn, pointer) =>
       openHelp(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
-    this.makeButton(-(pad + sound.w + 18 + museum.w + 6 + grave.w + 18 + help.w + 6), pad, 'ALL GRAVEYARDS', (btn, pointer) =>
+    add('ALL GRAVEYARDS', (btn, pointer) =>
       openGuestsDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
-    this.hud.sound = sound;
     if (state.data.guest) {
       this.makeButton(pad, pad, this.night ? "< CURATOR'S GRAVEYARD" : "< CURATOR'S MUSEUM", () => {
         location.href = `/${location.search}`;
@@ -385,6 +424,7 @@ class MuseumScene extends Phaser.Scene {
   }
 
   drawDoor(ex, x) {
+    if (this.snes) return this.drawGrave(ex, x);
     const frame = this.night ? 0x8f8ca0 : 0xd9a441;
     const door = this.add.image(x, FLOOR + (this.night ? 6 : 0), this.night ? 'tomb' : 'door').setOrigin(0.5, 1).setScale(SCALE).setInteractive({ useHandCursor: true });
     const top = FLOOR - door.displayHeight;
@@ -461,7 +501,7 @@ class MuseumScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const sx = rect.width / this.scale.width;
     const sy = rect.height / this.scale.height;
-    return { x: rect.left + (d.x - cam.scrollX) * sx, y: rect.top + (FLOOR - d.door.displayHeight / 2 - cam.scrollY) * sy };
+    return { x: rect.left + (d.x - cam.scrollX) * sx, y: rect.top + (d.door.y - d.door.displayHeight / 2 - cam.scrollY) * sy };
   }
 
   refreshDoor(id) {
@@ -471,7 +511,7 @@ class MuseumScene extends Phaser.Scene {
   }
 
   // ---------- the graveyard at night ----------
-  drawNight() {
+  drawClassicNight() {
     const w = this.worldW;
     const rnd = mulberry32(19980101);
     // Sky in hard 8-bit bands, fixed to the camera.
@@ -567,7 +607,7 @@ class MuseumScene extends Phaser.Scene {
     }
   }
 
-  drawGraveEntrance() {
+  drawClassicEntrance() {
     const x = 300;
     const y = 64;
     const w = 400;
@@ -576,13 +616,13 @@ class MuseumScene extends Phaser.Scene {
     g.fillStyle(0x8f8ca0, 1).fillRect(x - w / 2 - 6, y - 6, w + 12, h + 12);
     g.fillStyle(0x67647a, 1).fillRect(x + w / 2 - 6, y - 6, 12, h + 12);
     g.fillStyle(0x14101f, 1).fillRect(x - w / 2, y, w, h);
-    this.drawTitle(x, y, 'THE PUBLIC GRAVEYARD', '#e8e2ff', '#c9c2b6', 'Kept by Uncle Gerd · Open all night', '#8f8ca0');
+    this.drawTitle(x, y, 'Project Graveyard', '#e8e2ff', '#c9c2b6', 'Kept by Uncle Gerd · Open all night', '#8f8ca0');
     this.add
       .text(x + 180, FLOOR - 60, 'Please do not\nwake the dead code', textStyle(FONT_BODY, 18, '#14101f', { backgroundColor: '#c9c4e6', padding: { x: 6, y: 2 }, align: 'center' }))
       .setOrigin(0.5, 1);
   }
 
-  drawCrypt(x) {
+  drawClassicCrypt(x) {
     const g = this.add.graphics();
     g.fillStyle(0x6f6c84, 1).fillTriangle(x - 90, FLOOR - 150, x + 90, FLOOR - 150, x, FLOOR - 210);
     g.fillStyle(0x8f8ca0, 1).fillRect(x - 80, FLOOR - 150, 160, 150);
@@ -593,8 +633,65 @@ class MuseumScene extends Phaser.Scene {
     this.add.text(x, FLOOR - 60, 'forever', textStyle(FONT_BODY, 20, '#8f8ca0')).setOrigin(0.5);
   }
 
+  // ---------- SNES graveyard ----------
+  drawGraveSign(x, y, w, h) {
+    const g = this.add.graphics();
+    g.fillStyle(0x3c3032, 1).fillRect(x - w / 2 + 5, y + 5, w, h);
+    g.fillStyle(0x462f2b, 1).fillRect(x - w / 2, y, w, h);
+    g.fillStyle(0x9a694b, 1).fillRect(x - w / 2 + 3, y + 3, w - 6, h - 6);
+    g.fillStyle(0x3b2d2a, 1).fillRect(x - w / 2 + 6, y + 6, w - 12, h - 12);
+    g.fillStyle(0xc59468, 1).fillRect(x - w / 2 + 6, y + 3, w - 12, 3);
+  }
+
+  drawGraveEntrance() {
+    const x = 273;
+    const y = 60;
+    this.drawGraveSign(x, y, 380, 114);
+    this.drawTitle(x, y, 'Project Graveyard', '#f3e6c8', '#e7c28a', 'Kept by Uncle Gerd', '#ddc5ab');
+  }
+
+  drawGrave(ex, x) {
+    const feet = this.walkY(x) - 20;
+    const door = this.add.image(x, feet, 'grave').setOrigin(0.5, 1).setScale(PIXEL).setDepth(1).setInteractive({ useHandCursor: true });
+    const plaqueY = feet - door.displayHeight - 96;
+    this.add.ellipse(x + 4, feet, 96, 26, 0x493c31, 0.65);
+    const post = this.add.graphics();
+    post.fillStyle(0x4a382e, 1).fillRect(x - 5, plaqueY + 64, 10, 39);
+    post.fillStyle(0x79533b, 1).fillRect(x - 5, plaqueY + 64, 4, 36);
+    const width = 224;
+    this.drawGraveSign(x, plaqueY, width, 81);
+    this.add.text(x, plaqueY + 19, ex.title.toUpperCase(), textStyle(FONT_PIXEL, 9, '#f3e6c8', {
+      align: 'center', wordWrap: { width: width - 22 }, maxLines: 2, lineSpacing: 3,
+    })).setOrigin(0.5);
+    let repoName = (ex.repo || '').split('/').pop() || ex.id;
+    if (repoName.length > 26) repoName = `${repoName.slice(0, 25)}…`;
+    this.add.text(x, plaqueY + 41, repoName, textStyle(FONT_BODY, 18, '#ddc5ab')).setOrigin(0.5);
+    const details = this.add.text(x - 97, plaqueY + 63, `${ex.years} · ${ex.language}`, textStyle(FONT_BODY, 17, '#e7c28a')).setOrigin(0, 0.5);
+    if (details.width > 145) details.setFontSize(Math.floor(17 * 145 / details.width));
+    this.add.text(x + 74, plaqueY + 54, 'REVIVAL', textStyle(FONT_BODY, 11, '#ddc5ab')).setOrigin(0.5);
+    const odds = this.add.text(x + 74, plaqueY + 66, '', textStyle(FONT_PIXEL, 9, '#f3e6c8')).setOrigin(0.5);
+    const status = this.add.text(x, plaqueY - 13, '', textStyle(FONT_PIXEL, 9, '#6dff9e', { stroke: '#272021', strokeThickness: 3 })).setOrigin(0.5);
+    const prompt = this.add.text(x, feet + 18, '↑ VISIT', textStyle(FONT_PIXEL, 9, '#2d211e', {
+      backgroundColor: '#efd4a6', padding: { x: 7, y: 5 },
+    })).setOrigin(0.5, 0).setDepth(6).setVisible(false);
+    door.on('pointerdown', () => this.walkTo(ex.id));
+    this.add.zone(x, plaqueY, width, 81).setOrigin(0.5, 0).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.walkTo(ex.id));
+
+    const d = { ex, x, door, odds, status, prompt, blink: null };
+    this.updateDoor(d, ex);
+    return d;
+  }
+
+  drawCrypt(x) {
+    const y = this.walkY(x) - 26;
+    this.add.image(x, y, 'crypt-cave').setOrigin(0.5, 0.84).setScale(PIXEL);
+    this.drawGraveSign(x, y - 155, 198, 34);
+    this.add.text(x, y - 138, 'CRYPT GIFT SHOP', textStyle(FONT_PIXEL, 9, '#f3e6c8')).setOrigin(0.5);
+    this.add.text(x, y - 24, 'CLOSED FOREVER', textStyle(FONT_BODY, 15, '#ddc5ab')).setOrigin(0.5);
+  }
+
   makeBat() {
-    this.bat = this.add.image(-40, 120, 'bat-up').setScale(SCALE).setScrollFactor(0.6).setDepth(3);
+    this.bat = this.add.image(-40, 120, 'bat-up').setScale(this.snes ? PIXEL : SCALE).setScrollFactor(0.6).setDepth(this.snes ? -1 : 3);
     this.batDir = 1;
     this.batBaseY = 110;
     if (reduceMotion) this.bat.setPosition(W * 0.62, 150); // just hangs around
@@ -639,12 +736,13 @@ class MuseumScene extends Phaser.Scene {
     const b = this.bubble;
     this.quipShown = isQuip;
     b.text.setText(line);
-    b.w = Math.ceil(b.text.width) + 24;
-    b.h = Math.ceil(b.text.height) + 16;
+    b.bubbleWidth = Math.ceil(b.text.width) + 24;
+    b.bubbleHeight = Math.ceil(b.text.height) + 16;
     b.bg.clear();
-    b.bg.fillStyle(0x1a1016, 1).fillRect(-3, -3, b.w + 6, b.h + 6);
-    b.bg.fillStyle(0xf3e6c8, 1).fillRect(0, 0, b.w, b.h);
-    b.bg.fillTriangle(18, b.h, 40, b.h, 12, b.h + 16);
+    b.bg.fillStyle(0x1a1016, 1).fillRect(-3, -3, b.bubbleWidth + 6, b.bubbleHeight + 6);
+    b.bg.fillStyle(0xf3e6c8, 1).fillRect(0, 0, b.bubbleWidth, b.bubbleHeight);
+    if (this.snes) b.bg.fillTriangle(b.bubbleWidth - 40, b.bubbleHeight, b.bubbleWidth - 18, b.bubbleHeight, b.bubbleWidth - 12, b.bubbleHeight + 16);
+    else b.bg.fillTriangle(18, b.bubbleHeight, 40, b.bubbleHeight, 12, b.bubbleHeight + 16);
     b.setVisible(true);
     this.positionBubble();
     this.bubbleTimer?.remove();
@@ -653,8 +751,9 @@ class MuseumScene extends Phaser.Scene {
 
   positionBubble() {
     const b = this.bubble;
-    const x = Phaser.Math.Clamp(this.uncle.x - 30, 8, this.worldW - b.w - 8);
-    b.setPosition(x, FLOOR - this.uncle.displayHeight - b.h - 24);
+    const left = this.snes ? this.uncle.x - b.bubbleWidth + 22 : this.uncle.x - 30;
+    const x = Phaser.Math.Clamp(left, 8, this.worldW - b.bubbleWidth - 8);
+    b.setPosition(x, this.uncle.y - this.uncle.displayHeight - b.bubbleHeight - 24);
   }
 
   walkTo(id) {
@@ -694,12 +793,15 @@ class MuseumScene extends Phaser.Scene {
       this.player.x = Phaser.Math.Clamp(this.player.x + (dir * SPEED * delta) / 1000, 40, this.worldW - 40);
       this.player.setFlipX(dir < 0);
       this.walkClock += delta;
-      this.player.setTexture(Math.floor(this.walkClock / 150) % 2 ? 'dev-b' : 'dev-a');
+      const step = (!this.snes || !reduceMotion) && Math.floor(this.walkClock / 150) % 2;
+      this.player.setTexture(this.snes ? (step ? 'walker-step' : 'walker') : (step ? 'dev-b' : 'dev-a'));
     } else {
-      this.player.setTexture(time < this.idle.devBlinkUntil ? 'dev-blink' : 'dev-a');
+      const blink = time < this.idle.devBlinkUntil;
+      this.player.setTexture(this.snes ? (blink ? 'walker-blink' : 'walker') : (blink ? 'dev-blink' : 'dev-a'));
       this.walkClock = 0;
     }
-    this.animateIdle(time);
+    this.player.y = this.walkY(this.player.x);
+    if (this.snes) this.playerShadow.setPosition(this.player.x, this.player.y - 2);
     if (this.night) this.flyBat(time, delta);
 
     // Uncle Gerd starts guiding once you walk past him, and trails a few steps behind.
@@ -707,21 +809,23 @@ class MuseumScene extends Phaser.Scene {
       this.guiding = true;
       this.say('Komm, Junge. Every room has a story.', 3500);
     }
+    let uncleSteps = false;
     if (this.guiding) {
       const behind = this.player.flipX ? 110 : -110;
       const dx = this.player.x + behind - this.uncle.x;
       if (Math.abs(dx) > 14) {
         this.uncle.x += Math.sign(dx) * Math.min(Math.abs(dx), (UNCLE_SPEED * delta) / 1000);
         this.uncle.setFlipX(dx < 0);
-        this.uncle.y = reduceMotion ? FLOOR : FLOOR - (Math.floor(time / 160) % 2) * 3;
-      } else {
-        this.uncle.y = FLOOR;
+        uncleSteps = !reduceMotion && Math.floor(time / 160) % 2 === 1;
       }
     } else if (time > this.nextChat && Math.abs(this.player.x - this.uncle.x) < 110 && !this.bubble.visible) {
       const lines = this.night ? NIGHT_LINES : UNCLE_LINES;
       this.say(lines[this.chatIndex++ % lines.length]);
       this.nextChat = time + 9000;
     }
+    this.uncle.y = this.walkY(this.uncle.x) - (uncleSteps && !this.snes ? 3 : 0);
+    this.uncleShadow?.setPosition(this.uncle.x, this.uncle.y - 2);
+    this.animateIdle(time, uncleSteps);
     if (this.bubble.visible) this.positionBubble();
 
     const near = this.doors.find((d) => Math.abs(d.x - this.player.x) < 70) || null;
@@ -746,7 +850,7 @@ class MuseumScene extends Phaser.Scene {
   }
 
   // Idle life: both blink now and then, Uncle Gerd's moustache twitches, and wiggles while he talks.
-  animateIdle(time) {
+  animateIdle(time, walking) {
     const idle = this.idle;
     const rand = (min, max) => min + Math.random() * (max - min);
     if (time > idle.devBlinkAt) {
@@ -764,7 +868,9 @@ class MuseumScene extends Phaser.Scene {
     const talking = this.bubble.visible;
     const twitching = talking ? Math.floor(time / 130) % 2 === 0 : time < idle.twitchUntil && Math.floor((idle.twitchUntil - time) / 80) % 2 === 0;
     const blinking = time < idle.uncleBlinkUntil;
-    const key = `uncle${twitching ? '-twitch' : ''}${blinking ? '-blink' : ''}`;
+    const base = this.snes ? 'guide' : 'uncle';
+    const pose = this.snes && walking ? '-step' : twitching ? '-twitch' : '';
+    const key = `${base}${pose}${blinking ? '-blink' : ''}`;
     if (this.uncle.texture.key !== key) this.uncle.setTexture(key);
   }
 
@@ -895,8 +1001,9 @@ function renderRoom(ex) {
 }
 
 function portrait() {
-  const c = el('canvas', { width: 14, height: 22, class: 'pixel portrait', role: 'img', 'aria-label': 'Uncle Gerd' });
-  paintPixels(c.getContext('2d'), UNCLE);
+  const rows = snes() ? GRAVE_SPRITES.guide : UNCLE;
+  const c = el('canvas', { width: rows[0].length, height: rows.length, class: 'pixel portrait', role: 'img', 'aria-label': 'Uncle Gerd' });
+  paintPixels(c.getContext('2d'), rows);
   return c;
 }
 
@@ -1108,20 +1215,31 @@ document.getElementById('list-toggle').addEventListener('click', () => {
 const PLACE = { museum: 'Museum', graveyard: 'Graveyard' };
 
 function applyTheme() {
+  setSoundStyle(snes() ? 'snes' : '8bit');
   document.documentElement.dataset.theme = state.theme;
+  document.documentElement.dataset.graveyardStyle = state.graveyardStyle;
   const place = PLACE[state.theme];
   document.getElementById('site-place').textContent = place;
+  document.getElementById('game').setAttribute('aria-label', night()
+    ? 'The graveyard trail. Walk with the left and right arrow keys, or visit a grave with the up arrow. Press B to switch graphics styles or L for all graveyards.'
+    : 'The museum hallway. Walk with the left and right arrow keys, or enter a room with the up arrow. Press L for all graveyards.');
   // (read the guest name from the URL here: this runs before GUEST is declared further down)
   const guest = decodeURIComponent(location.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1] || '');
   document.title = guest ? `@${guest} · Uncle Gerd's ${place}` : `Uncle Gerd's ${place} of Dead Side Projects`;
 }
 
-function setTheme(theme) {
-  if (theme === state.theme) return;
+function setTheme(theme, style = state.graveyardStyle) {
+  if (theme === state.theme && style === state.graveyardStyle) return;
   state.theme = theme;
+  state.graveyardStyle = style;
   try {
     localStorage.setItem('ugm-theme', theme);
+    localStorage.setItem('ugm-graveyard-style', style);
   } catch {}
+  const url = new URL(location.href);
+  if (url.searchParams.has('theme')) url.searchParams.set('theme', theme);
+  if (url.searchParams.has('style')) url.searchParams.set('style', style);
+  if (url.href !== location.href) history.replaceState(null, '', url);
   applyTheme();
   const scene = state.scene;
   if (scene?.player) {
@@ -1138,12 +1256,13 @@ onSoundChange(() => state.scene?.refreshHud());
 document.getElementById('game').addEventListener('pointerdown', () => {
   if (!document.querySelector('dialog[open]')) focusGame();
 });
-// Shortcuts: M sound, T theme, G dig up your own graveyard.
+// Shortcuts: M sound, T theme, B graveyard style, G dig up your own graveyard.
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, dialog')) return;
   const key = e.key.toLowerCase();
   if (key === 'm') setSound(!isSoundOn());
   if (key === 't') setTheme(night() ? 'museum' : 'graveyard');
+  if (key === 'b' && night()) setTheme('graveyard', snes() ? '8bit' : 'snes');
   if (key === 'g') openDigDialog();
   if (key === 'h' || key === '?') openHelp();
   if (key === 'l') openGuestsDialog();

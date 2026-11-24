@@ -1,8 +1,9 @@
-// "Crypt Crawl": an original, dark 8-bit soundtrack (NES-style channels: two pulse waves, a triangle
-// and noise), composed for this museum. D minor with a phrygian Eb, slow and low, with a tolling bell.
-// Synthesized live with the Web Audio API. Off until the visitor turns it on.
+// "Crypt Crawl": an original soundtrack in two arrangements, with NES-style
+// oscillators for the classic look and sampled instruments for the SNES look.
+import { playSample } from './snes-audio.js';
 
 const STORAGE_KEY = 'ugm-sound';
+const MIX_LEVEL = { '8bit': 1, snes: 1.4 };
 const BPM = 88;
 const STEP = 60 / BPM / 4; // one 16th note in seconds
 const BARS = 4;
@@ -41,9 +42,11 @@ const ARPS = [
 
 let ctx = null;
 let master = null;
+let mix = null;
 let noise = null;
 const pulses = {};
 let enabled = false;
+let soundStyle = '8bit';
 let timer = null;
 let nextTime = 0;
 let step = 0;
@@ -72,15 +75,18 @@ function ensureContext() {
 }
 
 // Renders the soundtrack offline (used to export a preview WAV, never during normal visits).
-export async function renderOffline(seconds = 20, sampleRate = 44100) {
-  const saved = [ctx, master, noise, { ...pulses }];
-  ctx = new OfflineAudioContext(2, Math.ceil(sampleRate * seconds), sampleRate);
-  buildGraph();
-  for (let i = 0, t = 0.05; t < seconds; i++, t += STEP) scheduleStep(i, t);
-  const buffer = await ctx.startRendering();
-  [ctx, master, noise] = saved;
-  Object.assign(pulses, saved[3]);
-  return buffer;
+export function renderOffline(seconds = 20, sampleRate = 44100, style = '8bit') {
+  const saved = [ctx, master, mix, noise, { ...pulses }];
+  try {
+    ctx = new OfflineAudioContext(2, Math.ceil(sampleRate * seconds), sampleRate);
+    buildGraph();
+    mix = makeMix(MIX_LEVEL[style]);
+    for (let i = 0, t = 0.05; t < seconds; i++, t += STEP) scheduleStep(style, i, t);
+    return ctx.startRendering();
+  } finally {
+    [ctx, master, mix, noise] = saved;
+    Object.assign(pulses, saved[4]);
+  }
 }
 
 // A pulse wave with a given duty cycle, like the NES square channels (12.5%, 25%, 50%).
@@ -114,6 +120,13 @@ function buildGraph() {
   return ctx;
 }
 
+function makeMix(level = 1) {
+  const gain = ctx.createGain();
+  gain.gain.value = level;
+  gain.connect(master);
+  return gain;
+}
+
 function voice(freq, t, len, { wave = 'triangle', duty = 0.5, volume = 0.3, decay = null, slideTo = null }) {
   const osc = ctx.createOscillator();
   if (wave === 'pulse') osc.setPeriodicWave(pulses[duty]);
@@ -127,7 +140,7 @@ function voice(freq, t, len, { wave = 'triangle', duty = 0.5, volume = 0.3, deca
     g.gain.setValueAtTime(volume, t + len * 0.85);
     g.gain.linearRampToValueAtTime(0, t + len);
   }
-  osc.connect(g).connect(master);
+  osc.connect(g).connect(mix);
   osc.start(t);
   osc.stop(t + Math.max(len, decay || 0) + 0.02);
 }
@@ -147,7 +160,7 @@ function hiss(t, { freq = 6000, volume = 0.08, decay = 0.04, type = 'highpass' }
   const g = ctx.createGain();
   g.gain.setValueAtTime(volume, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
-  src.connect(f).connect(g).connect(master);
+  src.connect(f).connect(g).connect(mix);
   src.start(t, Math.random() * 0.5);
   src.stop(t + decay + 0.02);
 }
@@ -165,7 +178,7 @@ function noteLength(row, s, cap) {
   return k * STEP;
 }
 
-function scheduleStep(i, t) {
+function scheduleClassicStep(i, t) {
   const round = Math.floor(i / LOOP);
   const bar = Math.floor(i / 16) % BARS;
   const s = i % 16;
@@ -191,17 +204,52 @@ function scheduleStep(i, t) {
   }
 }
 
+function sampled(instrument, note, time, length, volume, pan = 0, slideTo) {
+  const frequency = note ? NOTE(note) : 220;
+  playSample(ctx, mix, instrument, frequency, time, length, { volume, pan, slideTo });
+}
+
+function scheduleSnesStep(i, t) {
+  const bar = Math.floor(i / 16) % BARS;
+  const s = i % 16;
+  const chord = ARPS[bar];
+  const bass = BASS[bar][s];
+  const lead = MELODY[bar][s];
+  if (s === 0) {
+    chord.slice(0, 3).forEach((note, index) => sampled('strings', note, t, STEP * 15.9, 0.095, (index - 1) * 0.28));
+    if (bar === 0) sampled('chime', 'D5', t, 0.9, 0.13, 0.24);
+  }
+  if (bass !== '.') sampled('bass', bass, t, noteLength(BASS[bar], s, 4) * 0.94, 0.37);
+  if (lead !== '.') sampled('flute', lead, t, noteLength(MELODY[bar], s, 8) * 0.85, 0.22, -0.2);
+  if (s % 2 === 0) sampled('mallet', chord[(s / 2) % chord.length], t, STEP * 1.8, s % 4 === 0 ? 0.15 : 0.1, 0.35);
+  if (s === 0 || s === 8) sampled('kick', null, t, 0.25, 0.3);
+  if (s === 4 || s === 12) sampled('rim', null, t, 0.16, 0.2, -0.14);
+  if (s % 4 === 2) sampled('brush', null, t, 0.1, 0.1, 0.3);
+}
+
+function scheduleStep(style, i, t) {
+  if (style === 'snes') scheduleSnesStep(i, t);
+  else scheduleClassicStep(i, t);
+}
+
 function tick() {
-  while (nextTime < ctx.currentTime + 0.15) {
-    scheduleStep(step, nextTime);
+  const now = ctx.currentTime;
+  // While a background tab throttles timers, skip missed notes and keep the beat.
+  if (nextTime < now) {
+    const missed = Math.ceil((now - nextTime) / STEP);
+    nextTime += missed * STEP;
+    step += missed;
+  }
+  while (nextTime < now + 0.15) {
+    scheduleStep(soundStyle, step, nextTime);
     nextTime += STEP;
     step += 1;
-    if (step >= LOOP * 4) step = LOOP; // after the intro round, loop the full arrangement
   }
 }
 
 function startMusic() {
   if (!ensureContext() || timer) return;
+  mix = makeMix(MIX_LEVEL[soundStyle]);
   ctx.resume();
   nextTime = ctx.currentTime + 0.06;
   step = 0;
@@ -211,7 +259,28 @@ function startMusic() {
 function stopMusic() {
   clearInterval(timer);
   timer = null;
+  mix?.disconnect();
+  mix = null;
   if (ctx) ctx.suspend();
+}
+
+export function setSoundStyle(style) {
+  if (style === soundStyle) return;
+  soundStyle = style;
+  if (!mix || !timer) return;
+  const oldMix = mix;
+  const now = ctx.currentTime;
+  const end = now + 0.06;
+  if (oldMix.gain.cancelAndHoldAtTime) oldMix.gain.cancelAndHoldAtTime(now);
+  else {
+    oldMix.gain.cancelScheduledValues(now);
+    oldMix.gain.setValueAtTime(oldMix.gain.value, now);
+  }
+  oldMix.gain.linearRampToValueAtTime(0, end);
+  mix = makeMix(0);
+  mix.gain.setValueAtTime(0, now);
+  mix.gain.linearRampToValueAtTime(MIX_LEVEL[style], end);
+  setTimeout(() => oldMix.disconnect(), 90);
 }
 
 export function isSoundOn() {
@@ -232,8 +301,19 @@ export function onSoundChange(fn) {
 
 // Short effects, only when the visitor has turned sound on.
 export function sfx(name) {
-  if (!enabled || !ctx) return;
+  if (!enabled || !mix) return;
   const t = ctx.currentTime + 0.01;
+  if (soundStyle === 'snes') {
+    if (name === 'door') {
+      sampled('wood', 'C3', t, 0.36, 0.33, 0, NOTE('G2'));
+    } else if (name === 'alive') {
+      ['D4', 'F4', 'A4', 'D5', 'F#5'].forEach((note, i) => sampled('chime', note, t + i * 0.09, 0.48, 0.28));
+    } else if (name === 'dead') {
+      sampled('mallet', 'Eb3', t, 0.26, 0.29);
+      sampled('bass', 'D3', t + 0.23, 0.85, 0.34, 0, NOTE('D2'));
+    }
+    return;
+  }
   if (name === 'door') {
     // A creaking door: a low pulse bending down.
     voice(NOTE('A2'), t, 0.35, { wave: 'pulse', duty: 0.125, volume: 0.18, slideTo: NOTE('F2') });

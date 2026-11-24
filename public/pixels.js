@@ -22,6 +22,11 @@ export const PALETTE = {
   m: 0x4f6e3b, // moss
   v: 0x6a5a86, // bat (lighter than the night sky, so you can spot it)
   q: 0xff5a5a, // bat eyes
+  L: 0xbcbab0, // stone highlights
+  l: 0xa29fa0,
+  M: 0x738956, // moss highlights
+  u: 0x7294cc, // blue cloak highlights
+  a: 0xe0bc7c, // cardigan highlights
 };
 
 const DEV_TOP = [

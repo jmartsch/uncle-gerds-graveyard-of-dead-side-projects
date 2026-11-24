@@ -691,7 +691,7 @@ dialog::backdrop {
   color: var(--ink);
 }
 
-/* Graveyard: moonlit stone instead of brass */
+/* Original moonlit graveyard */
 :root[data-theme='graveyard'] {
   --gold: #a9a5c4;
   --room: #18142a;
@@ -700,6 +700,16 @@ dialog::backdrop {
 
 :root[data-theme='graveyard'] body {
   background: #0a0816;
+}
+
+:root[data-theme='graveyard'][data-graveyard-style='snes'] {
+  --gold: #d1b081;
+  --room: #242b24;
+  --wall: #17261e;
+}
+
+:root[data-theme='graveyard'][data-graveyard-style='snes'] body {
+  background: #101b16;
 }
 
 :root[data-theme='graveyard'] .topbar h1 {

@@ -1,6 +1,6 @@
 # Uncle Gerd's Graveyard of Dead Side Projects
 
-*Every developer has a graveyard. Uncle Gerd keeps mine – as a moonlit graveyard or a museum – and he can bring the dead back to life.*
+*Every developer has a graveyard. Uncle Gerd keeps mine as a pixel-art graveyard or a museum, and he can bring the dead back to life.*
 
 A personal agent that lives on a [Fly.io Sprite](https://fly.io/sprites). It digs through your GitHub account for projects that have not seen a push in a year, turns each one into a tombstone in a walkable pixel-art graveyard (or a door in a museum), and lets Uncle Gerd – a grumpy but loving German uncle in a beige cardigan – comment on every one of them. Click **Revive** and the agent spawns a fresh Sprite, takes a checkpoint, and lets Claude Code try to bring the project back to life. If the patient flatlines, it restores the checkpoint and tries again. If it lives, it gets its own public URL.
 
@@ -55,7 +55,7 @@ To scan your real GitHub account locally, put `GITHUB_TOKEN=$(gh auth token)` (a
 - Private repositories are never exhibited automatically, because the museum URL is public. Hand-pick them with `EXHIBIT_REPOS` if you really want to.
 - Revivals run with `--dangerously-skip-permissions`, which is exactly why they happen on a disposable, hardware-isolated Sprite instead of your laptop.
 - Deep links: `/#room=<exhibit-id>` opens a room directly.
-- Two themes: **Graveyard** (default: moonlit night, twinkling stars, a bat, tombstones) and **Museum** (brass, doors, checkered floor). Switch at the top, or link with `?theme=museum`.
+- The graveyard starts in **SNES** style. Choose **8-BIT** at the top or press **B** for the original moonlit graveyard. The game remembers your choice. Link directly with `?theme=graveyard&style=8bit` or `?theme=graveyard&style=snes`. The **Museum** has its own button and URL (`?theme=museum`).
 
 ## Credits
 
