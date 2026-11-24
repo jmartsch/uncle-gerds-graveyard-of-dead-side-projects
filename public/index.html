@@ -52,6 +52,7 @@
           <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>walk (or click a grave or door)</dd>
           <dt><kbd>↑</kbd> <kbd>Enter</kbd></dt><dd>visit the grave in front of you</dd>
           <dt><kbd>Esc</kbd></dt><dd>leave again</dd>
+          <dt><kbd>L</kbd></dt><dd>all graveyards dug so far</dd>
           <dt><kbd>G</kbd></dt><dd>dig up your own graveyard</dd>
           <dt><kbd>T</kbd></dt><dd>switch between graveyard and museum</dd>
           <dt><kbd>M</kbd></dt><dd>8-bit sound on or off</dd>
@@ -67,6 +68,16 @@
         </p>
         <div class="visit-actions">
           <button type="button" id="help-close" autofocus>Got it</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="guests-dialog" class="dig-dialog guests-dialog" aria-labelledby="guests-title">
+      <div class="guests">
+        <h2 id="guests-title">All graveyards dug so far</h2>
+        <ul id="guests-list" class="guests-list"></ul>
+        <p id="guests-empty" class="muted" hidden>Nobody has been excavated yet.</p>
+        <div class="visit-actions">
+          <button type="button" id="guests-close" autofocus>Close</button>
         </div>
       </div>
     </dialog>

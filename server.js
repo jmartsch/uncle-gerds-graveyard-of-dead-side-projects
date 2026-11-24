@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { ROOT, config } from './lib/config.js';
 import { loadExhibits, exhibitsWithRevivals } from './lib/exhibits.js';
-import { startScan, scanState, GUEST_NAME, loadGuest, guestState, startGuestScan, GuestLimitError } from './lib/curator.js';
+import { startScan, scanState, GUEST_NAME, loadGuest, guestState, startGuestScan, GuestLimitError, listGuests } from './lib/curator.js';
 import { startRevival, getRevival } from './lib/revive.js';
 import { status as connectorStatus } from './lib/connectors.js';
 
@@ -58,6 +58,8 @@ async function routeApi(req, res, url) {
       return sendJSON(res, startScan() ? 202 : 409, scanState());
     }
   }
+
+  if (m === 'GET' && p === '/api/guests') return sendJSON(res, 200, await listGuests());
 
   // Guest museums: anyone can have their public GitHub graveyard dug up. Read-only, no revivals.
   const guest = p.match(/^\/api\/guests\/([^/]+?)(\/scan)?$/);

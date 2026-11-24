@@ -942,3 +942,44 @@ main {
 .help-dialog {
   width: min(520px, calc(100% - 32px));
 }
+
+/* ---------- all graveyards dug so far ---------- */
+.guests {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.guests h2 {
+  margin: 0;
+  font: 13px/1.6 var(--pixel);
+  color: var(--gold);
+}
+
+.guests-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  border: 2px solid var(--gold);
+}
+
+.guests-list li + li {
+  border-top: 1px solid var(--muted);
+}
+
+.guests-list a {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  color: var(--cream);
+  text-decoration: none;
+}
+
+.guests-list a:hover,
+.guests-list a:focus-visible {
+  background: var(--room);
+  color: var(--gold);
+}
