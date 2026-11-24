@@ -78,7 +78,10 @@ async function routeApi(req, res, url) {
       try {
         return sendJSON(res, 202, startGuestScan(key));
       } catch (err) {
-        if (err instanceof GuestLimitError) return sendJSON(res, 429, { error: err.message });
+        if (err instanceof GuestLimitError) {
+          res.setHeader('retry-after', String(err.retryAfter));
+          return sendJSON(res, 429, { error: err.message, retryAfter: err.retryAfter });
+        }
         throw err;
       }
     }

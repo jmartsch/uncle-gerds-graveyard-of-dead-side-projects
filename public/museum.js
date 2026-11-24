@@ -1172,6 +1172,24 @@ function uncleSays(text) {
   }, 30);
 }
 
+// "about 3 min" / "about 40 s"
+function duration(seconds) {
+  const s = Math.max(0, Math.round(seconds || 0));
+  return s >= 90 ? `${Math.round(s / 60)} min` : `${Math.max(10, Math.round(s / 10) * 10)} s`;
+}
+
+// When the gate is full (or Uncle Gerd hit his hourly limit), count down visibly and try again.
+async function waitAtGate(reason, seconds, status) {
+  document.getElementById('dig-progress').classList.add('queued');
+  for (let left = Math.ceil(seconds); left > 0; left--) {
+    const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    uncleSays(`${reason} I'll knock again in a moment, Junge.`);
+    status.textContent = `Trying again in ${clock}…`;
+    await sleep(1000);
+  }
+  document.getElementById('dig-progress').classList.remove('queued');
+}
+
 // Steps the excavation goes through: search, then exhume / Jev / Uncle Gerd per repo, then done.
 const DIG_STEPS = 11;
 
@@ -1216,22 +1234,34 @@ async function digGuestMuseum(name) {
         return body;
       }
       if (res.status === 404 && !started) {
-        started = true;
         const r = await fetch(`/api/guests/${encodeURIComponent(name)}/scan`, { method: 'POST' });
         const b = await r.json().catch(() => ({}));
         if (r.status === 200) continue;
+        if (r.status === 429) {
+          // Gate is full or the hourly limit is reached: wait it out visibly, then knock again.
+          panel.hidden = false;
+          await waitAtGate(b.error || 'The cemetery gate is crowded.', b.retryAfter || 30, status);
+          continue;
+        }
         if (!r.ok) throw new Error(b.error || `HTTP ${r.status}`);
+        started = true;
       } else if (res.status !== 202) {
         throw new Error(body.error || `HTTP ${res.status}`);
       }
       if (body.status === 'error') throw new Error(body.error || 'The excavation failed.');
       panel.hidden = false;
       const queued = body.status === 'queued' && body.position;
-      status.textContent = queued ? `Waiting at the cemetery gate (position ${body.position})…` : 'Digging… this takes about a minute.';
+      status.textContent = queued
+        ? `In the queue: number ${body.position} of ${body.total} · about ${duration(body.etaSeconds)} until it's ready`
+        : 'Digging… this takes about a minute.';
       bar.classList.toggle('queued', Boolean(queued));
       if (!queued) setProgress(Math.max(0.08, Math.min(0.95, (body.log?.length || 0) / DIG_STEPS)));
       const last = body.log?.at(-1)?.msg;
-      uncleSays(queued ? 'There is a queue at the cemetery gate. Patience, Junge.' : last || 'Moment, Junge. Let me get my shovel.');
+      uncleSays(
+        queued
+          ? `You are number ${body.position} of ${body.total} at the cemetery gate. Patience, Junge.`
+          : last || 'Moment, Junge. Let me get my shovel.',
+      );
       await sleep(1500);
     }
   } catch (err) {
