@@ -635,8 +635,9 @@ class MuseumScene extends Phaser.Scene {
     return container;
   }
 
-  say(line, ms = 5000) {
+  say(line, ms = 5000, isQuip = false) {
     const b = this.bubble;
+    this.quipShown = isQuip;
     b.text.setText(line);
     b.w = Math.ceil(b.text.width) + 24;
     b.h = Math.ceil(b.text.height) + 16;
@@ -729,7 +730,13 @@ class MuseumScene extends Phaser.Scene {
       near?.prompt.setVisible(true);
       this.near = near;
       setEnterButton(near);
-      if (near) this.say(doorQuip(near.ex, this.doors.indexOf(near)), 3500);
+      if (near) this.say(doorQuip(near.ex, this.doors.indexOf(near)), 3500, true);
+      else if (this.quipShown) {
+        // Walked away from the door: the quip goes with them.
+        this.bubbleTimer?.remove();
+        this.bubble.setVisible(false);
+        this.quipShown = false;
+      }
     }
 
     // Evaluate every key so their "just pressed" flags reset each frame.
