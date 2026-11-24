@@ -910,33 +910,47 @@ function openRoom(id) {
   if (ex.revival?.status === 'reviving') startPolling();
 }
 
-// Zoom the room out of (and back into) the door it belongs to. Reduced motion: a short fade only.
-// Slow and jaggy on purpose: the zoom moves in a few hard pixel-art steps instead of smoothly.
-const ZOOM_MS = 900;
-const ZOOM_OUT_MS = 650;
-const ZOOM_STEPS = 8;
+function animatePopup(dialog, origin, { opening = true, duration = 600, steps = 6, backdrop = false } = {}) {
+  const smooth = snes();
+  const fade = [{ opacity: 0 }, { opacity: 1 }];
+  const frames = [
+    { transform: smooth ? 'scale(0.9)' : 'scale(0.08)', opacity: 0, transformOrigin: origin },
+    { transform: 'scale(1)', opacity: 1, transformOrigin: origin },
+  ];
+  const opts = smooth
+    ? { duration: opening ? 220 : 160, easing: opening ? 'ease-out' : 'ease-in' }
+    : { duration, easing: `steps(${steps}, jump-end)` };
+  if (backdrop) {
+    try {
+      dialog.animate(opening ? fade : fade.reverse(), { ...opts, pseudoElement: '::backdrop' });
+    } catch {}
+  }
+  return dialog.animate(opening ? frames : frames.reverse(), opts).finished.catch(() => {});
+}
+
+function popupOrigin(dialog, from, fallback = '50% 50%') {
+  if (!from) return fallback;
+  const box = dialog.getBoundingClientRect();
+  return `${from.x - box.left}px ${from.y - box.top}px`;
+}
+
+function animatePopupOpen(dialog, from, fallback) {
+  if (!dialog.animate || reduceMotion) return;
+  animatePopup(dialog, popupOrigin(dialog, from, fallback));
+}
+
+// Zoom between the grave or door and its room. Reduced motion uses only a short fade.
 let closing = false;
 
 function zoomRoom(id, direction) {
   if (!dlg.animate) return Promise.resolve();
   const opening = direction === 'in';
-  const fade = [{ opacity: 0 }, { opacity: 1 }];
   if (reduceMotion) {
-    return dlg.animate(opening ? fade : [...fade].reverse(), { duration: 150, easing: 'ease-out' }).finished.catch(() => {});
+    const frames = [{ opacity: 0 }, { opacity: 1 }];
+    return dlg.animate(opening ? frames : frames.reverse(), { duration: 150, easing: 'ease-out' }).finished.catch(() => {});
   }
-  const box = dlg.getBoundingClientRect();
-  const door = state.scene?.doorScreenPoint(id);
-  const origin = door ? `${door.x - box.left}px ${door.y - box.top}px` : '50% 50%';
-  const frames = [
-    { transform: 'scale(0.08)', opacity: 0, transformOrigin: origin },
-    { transform: 'scale(1)', opacity: 1, transformOrigin: origin },
-  ];
-  const opts = { duration: opening ? ZOOM_MS : ZOOM_OUT_MS, easing: `steps(${opening ? ZOOM_STEPS : ZOOM_STEPS - 2}, jump-end)` };
-  const backdrop = [{ opacity: 0 }, { opacity: 1 }];
-  try {
-    dlg.animate(opening ? backdrop : [...backdrop].reverse(), { ...opts, pseudoElement: '::backdrop' });
-  } catch {}
-  return dlg.animate(opening ? frames : [...frames].reverse(), opts).finished.catch(() => {});
+  const origin = popupOrigin(dlg, state.scene?.doorScreenPoint(id));
+  return animatePopup(dlg, origin, { opening, duration: opening ? 900 : 650, steps: opening ? 8 : 6, backdrop: true });
 }
 
 async function closeRoom() {
@@ -1317,7 +1331,7 @@ async function fontsReady() {
 const GUEST = decodeURIComponent(location.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1] || '');
 const VALID_NAME = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 
-// "Dig yours": a popup to type a GitHub handle. It zooms out of the button, in hard steps like the rooms.
+// "Dig yours": a popup to type a GitHub handle.
 const digDialog = document.getElementById('dig-dialog');
 const visitInput = document.getElementById('visit-name');
 
@@ -1330,16 +1344,7 @@ function openDigDialog(from = null) {
     visitInput.focus();
     visitInput.select();
   }, 0);
-  if (!digDialog.animate || reduceMotion) return;
-  const box = digDialog.getBoundingClientRect();
-  const origin = from ? `${from.x - box.left}px ${from.y - box.top}px` : '50% 50%';
-  digDialog.animate(
-    [
-      { transform: 'scale(0.08)', opacity: 0, transformOrigin: origin },
-      { transform: 'scale(1)', opacity: 1, transformOrigin: origin },
-    ],
-    { duration: 600, easing: 'steps(6, jump-end)' },
-  );
+  animatePopupOpen(digDialog, from);
 }
 
 digDialog.addEventListener('close', () => {
@@ -1355,16 +1360,7 @@ function openHelp(from = null) {
   if (helpDialog.open || digDialog.open || state.open) return;
   state.scene?.pauseInput(true);
   helpDialog.showModal();
-  if (!helpDialog.animate || reduceMotion) return;
-  const box = helpDialog.getBoundingClientRect();
-  const origin = from ? `${from.x - box.left}px ${from.y - box.top}px` : '50% 0%';
-  helpDialog.animate(
-    [
-      { transform: 'scale(0.08)', opacity: 0, transformOrigin: origin },
-      { transform: 'scale(1)', opacity: 1, transformOrigin: origin },
-    ],
-    { duration: 600, easing: 'steps(6, jump-end)' },
-  );
+  animatePopupOpen(helpDialog, from, '50% 0%');
 }
 helpDialog.addEventListener('close', () => {
   if (!state.open) state.scene?.pauseInput(false);
@@ -1384,17 +1380,7 @@ async function openGuestsDialog(from = null) {
   list.replaceChildren(el('li', { class: 'muted' }, 'Digging through the records…'));
   empty.hidden = true;
   guestsDialog.showModal();
-  if (guestsDialog.animate && !reduceMotion) {
-    const box = guestsDialog.getBoundingClientRect();
-    const origin = from ? `${from.x - box.left}px ${from.y - box.top}px` : '50% 50%';
-    guestsDialog.animate(
-      [
-        { transform: 'scale(0.08)', opacity: 0, transformOrigin: origin },
-        { transform: 'scale(1)', opacity: 1, transformOrigin: origin },
-      ],
-      { duration: 600, easing: 'steps(6, jump-end)' },
-    );
-  }
+  animatePopupOpen(guestsDialog, from);
   try {
     const rows = await api('/api/guests');
     empty.hidden = rows.length > 0;
