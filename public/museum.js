@@ -60,9 +60,10 @@ function readTheme() {
   const fromUrl = new URLSearchParams(location.search).get('theme');
   if (fromUrl === 'museum' || fromUrl === 'graveyard') return fromUrl;
   try {
-    return localStorage.getItem('ugm-theme') === 'graveyard' ? 'graveyard' : 'museum';
+    // The graveyard is the default; the museum only when someone picked it.
+    return localStorage.getItem('ugm-theme') === 'museum' ? 'museum' : 'graveyard';
   } catch {
-    return 'museum';
+    return 'graveyard';
   }
 }
 const dlg = document.getElementById('room');
@@ -1032,8 +1033,15 @@ function toggleList(force) {
 document.getElementById('list-toggle').addEventListener('click', () => toggleList());
 
 // ---------- theme: museum or graveyard ----------
+const PLACE = { museum: 'Museum', graveyard: 'Graveyard' };
+
 function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
+  const place = PLACE[state.theme];
+  document.getElementById('site-place').textContent = place;
+  // (read the guest name from the URL here: this runs before GUEST is declared further down)
+  const guest = decodeURIComponent(location.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1] || '');
+  document.title = guest ? `@${guest} · Uncle Gerd's ${place}` : `Uncle Gerd's ${place} of Dead Side Projects`;
   for (const b of document.querySelectorAll('[data-theme-choice]')) b.setAttribute('aria-pressed', String(b.dataset.themeChoice === state.theme));
 }
 
@@ -1249,7 +1257,6 @@ async function boot() {
     const hallway = [document.getElementById('game'), document.querySelector('.hint')];
     for (const node of hallway) node.hidden = true; // nothing to walk through until the digging is done
     document.getElementById('visit-name').value = GUEST;
-    document.title = `@${GUEST} · Uncle Gerd's Museum`;
     if (!VALID_NAME.test(GUEST)) return showDigError('That is not a valid GitHub username.');
     try {
       state.data = await digGuestMuseum(GUEST);
