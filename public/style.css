@@ -412,7 +412,7 @@ dialog::backdrop {
 }
 
 .uncle blockquote footer {
-  color: #5b4a52;
+  color: var(--quote-muted, #5b4a52);
   font-size: 18px;
 }
 
@@ -691,7 +691,7 @@ dialog::backdrop {
   color: var(--ink);
 }
 
-/* Original moonlit graveyard */
+/* Graveyard lighting */
 :root[data-theme='graveyard'] {
   --gold: #a9a5c4;
   --room: #18142a;
@@ -702,18 +702,40 @@ dialog::backdrop {
   background: #0a0816;
 }
 
-:root[data-theme='graveyard'][data-graveyard-style='snes'] {
-  --gold: #d1b081;
-  --room: #242b24;
-  --wall: #17261e;
+:root[data-theme='graveyard'][data-graveyard-style='snes'][data-graveyard-lighting='dark'] {
+  --gold: #b6c5e3;
+  --room: #20263c;
+  --wall: #141d31;
 }
 
-:root[data-theme='graveyard'][data-graveyard-style='snes'] body {
-  background: #101b16;
+:root[data-theme='graveyard'][data-graveyard-lighting='light'] {
+  color-scheme: light;
+  --ink: #e7dfc4;
+  --room: #f8f3e1;
+  --wall: #dedec5;
+  --gold: #61502e;
+  --cream: #2c2b24;
+  --muted: #5d574a;
+  --green: #276343;
+  --amber: #874914;
+  --red: #973d34;
+  --quote-muted: #dad1b7;
 }
 
-:root[data-theme='graveyard'] .topbar h1 {
-  color: #e8e2ff;
+:root[data-theme='graveyard'][data-graveyard-lighting='light'] body {
+  background: var(--wall);
+}
+
+:root[data-theme='graveyard'][data-graveyard-lighting='light'] dialog::backdrop {
+  background: rgb(28 34 32 / 0.46);
+}
+
+:root[data-theme='graveyard'][data-graveyard-lighting='light'] .log {
+  color-scheme: dark;
+  --cream: #f3e6c8;
+  --green: #6dff9e;
+  --amber: #ffcf5a;
+  --red: #ff7a7a;
 }
 
 /* ---------- everything lives inside the stage now ---------- */
