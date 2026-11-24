@@ -7,8 +7,11 @@ const W = 960;
 const H = 540;
 const FLOOR = 452;
 const SCALE = 4;
-const FIRST_DOOR = 660;
+const FIRST_MUSEUM_DOOR = 660;
+const GRAVEYARD_ENTRANCE_X = W - 212;
+const FIRST_GRAVE = 1400;
 const DOOR_GAP = 330;
+const PLAYER_START_X = 150;
 const UNCLE_X = 330;
 const SPEED = 260;
 const UNCLE_SPEED = 230;
@@ -18,7 +21,9 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const GREETING = 'Ach, Junge. Welcome to your graveyard. Walk right, I will show you around.';
 const GREETING_EMPTY = 'Na ja. No dead projects at all? Come back in a year, Junge.';
-const NIGHT_GREETING = 'Ach, Junge. Welcome to your graveyard. Mind the graves, I will show you around.';
+const graveyardGreeting = (owner) => owner
+  ? `Komm, Junge. Let’s explore @${owner}’s dead projects.`
+  : 'Komm, Junge. Let’s explore these dead projects.';
 const NIGHT_LINES = [
   'Mind your step. Some of these still compile.',
   "Hear that? Not a bat. A deprecation warning.",
@@ -166,7 +171,10 @@ class MuseumScene extends Phaser.Scene {
   create() {
     state.scene = this;
     const exhibits = state.data.exhibits;
-    this.worldW = Math.max(W, FIRST_DOOR + Math.max(exhibits.length - 1, 0) * DOOR_GAP + 620);
+    this.night = night();
+    this.snes = snes();
+    this.firstExhibitX = this.night ? FIRST_GRAVE : FIRST_MUSEUM_DOOR;
+    this.worldW = Math.max(W, this.firstExhibitX + Math.max(exhibits.length - 1, 0) * DOOR_GAP + 620);
 
     this.makeTexture('dev-a', DEV_A);
     this.makeTexture('dev-b', DEV_B);
@@ -179,8 +187,6 @@ class MuseumScene extends Phaser.Scene {
     this.makeTexture('bat-up', BAT_UP);
     this.makeTexture('bat-down', BAT_DOWN);
 
-    this.night = night();
-    this.snes = snes();
     this.uncleShadow = null;
     if (this.snes) {
       for (const [key, rows] of Object.entries(GRAVE_SPRITES)) this.makeTexture(key, rows);
@@ -194,14 +200,14 @@ class MuseumScene extends Phaser.Scene {
       this.drawHall();
       this.drawEntrance();
     }
-    this.doors = exhibits.map((ex, i) => this.drawDoor(ex, FIRST_DOOR + i * DOOR_GAP));
+    this.doors = exhibits.map((ex, i) => this.drawDoor(ex, this.firstExhibitX + i * DOOR_GAP));
     const shopX = this.worldW - 230;
     if (this.snes) this.drawCrypt(shopX);
     else if (this.night) this.drawClassicCrypt(shopX);
     else this.drawGiftShop(shopX);
 
     // Coming back from a theme switch: stand where you stood, with Uncle Gerd already guiding.
-    const startX = state.lastX ?? 150;
+    const startX = state.lastX ?? PLAYER_START_X;
     const uncleX = startX > UNCLE_X + 140 ? startX - 110 : UNCLE_X;
     const scale = this.snes ? PIXEL : SCALE;
     this.uncle = this.add.image(uncleX, this.walkY(uncleX), this.snes ? 'guide' : 'uncle').setOrigin(0.5, 1).setScale(scale).setDepth(4);
@@ -213,7 +219,10 @@ class MuseumScene extends Phaser.Scene {
     this.bubble = this.makeBubble();
     this.makeHud();
     this.drawGroundHints();
-    if (state.lastX == null) this.time.delayedCall(500, () => this.say(exhibits.length ? (this.night ? NIGHT_GREETING : GREETING) : GREETING_EMPTY, 6500));
+    if (state.lastX == null) {
+      const greeting = exhibits.length ? (this.night ? graveyardGreeting(state.data.owner) : GREETING) : GREETING_EMPTY;
+      this.time.delayedCall(500, () => this.say(greeting, 6500));
+    }
     if (this.night) this.makeBat();
 
     const cam = this.cameras.main;
@@ -556,7 +565,7 @@ class MuseumScene extends Phaser.Scene {
 
     // The moon with a pixel glow.
     const moon = this.add.graphics().setScrollFactor(0.08).setDepth(-8);
-    const mx = W * 0.8;
+    const mx = W * 0.31;
     const my = 92;
     moon.fillStyle(0xe8e2ff, 0.05).fillCircle(mx, my, 96);
     moon.fillStyle(0xe8e2ff, 0.07).fillCircle(mx, my, 66);
@@ -608,7 +617,7 @@ class MuseumScene extends Phaser.Scene {
   }
 
   drawClassicEntrance() {
-    const x = 300;
+    const x = GRAVEYARD_ENTRANCE_X;
     const y = 64;
     const w = 400;
     const h = 120;
@@ -618,7 +627,7 @@ class MuseumScene extends Phaser.Scene {
     g.fillStyle(0x14101f, 1).fillRect(x - w / 2, y, w, h);
     this.drawTitle(x, y, 'Project Graveyard', '#e8e2ff', '#c9c2b6', 'Kept by Uncle Gerd · Open all night', '#8f8ca0');
     this.add
-      .text(x + 180, FLOOR - 60, 'Please do not\nwake the dead code', textStyle(FONT_BODY, 18, '#14101f', { backgroundColor: '#c9c4e6', padding: { x: 6, y: 2 }, align: 'center' }))
+      .text(x - 150, FLOOR - 60, 'Please do not\nwake the dead code', textStyle(FONT_BODY, 18, '#14101f', { backgroundColor: '#c9c4e6', padding: { x: 6, y: 2 }, align: 'center' }))
       .setOrigin(0.5, 1);
   }
 
@@ -644,7 +653,7 @@ class MuseumScene extends Phaser.Scene {
   }
 
   drawGraveEntrance() {
-    const x = 273;
+    const x = GRAVEYARD_ENTRANCE_X;
     const y = 60;
     this.drawGraveSign(x, y, 380, 114);
     this.drawTitle(x, y, 'Project Graveyard', '#f3e6c8', '#e7c28a', 'Kept by Uncle Gerd', '#ddc5ab');
@@ -725,7 +734,7 @@ class MuseumScene extends Phaser.Scene {
   makeBubble() {
     const container = this.add.container(0, 0).setDepth(10).setVisible(false);
     const bg = this.add.graphics();
-    const text = this.add.text(12, 8, '', textStyle(FONT_BODY, 22, '#1a1016', { wordWrap: { width: 280 }, lineSpacing: -2 }));
+    const text = this.add.text(12, 8, '', textStyle(FONT_BODY, 22, '#1a1016', { wordWrap: { width: 280, useAdvancedWrap: true }, lineSpacing: -2 }));
     container.add([bg, text]);
     container.bg = bg;
     container.text = text;
@@ -807,7 +816,7 @@ class MuseumScene extends Phaser.Scene {
     // Uncle Gerd starts guiding once you walk past him, and trails a few steps behind.
     if (!this.guiding && this.player.x > UNCLE_X + 140) {
       this.guiding = true;
-      this.say('Komm, Junge. Every room has a story.', 3500);
+      this.say(this.night ? 'Komm, Junge. Every stone has a story.' : 'Komm, Junge. Every room has a story.', 3500);
     }
     let uncleSteps = false;
     if (this.guiding) {
@@ -1243,7 +1252,11 @@ function setTheme(theme, style = state.graveyardStyle) {
   applyTheme();
   const scene = state.scene;
   if (scene?.player) {
-    state.lastX = scene.player.x;
+    const oldFirst = scene.firstExhibitX;
+    const newFirst = night() ? FIRST_GRAVE : FIRST_MUSEUM_DOOR;
+    // Preserve progress along the approach and the position relative to the exhibits.
+    const progress = Phaser.Math.Clamp((scene.player.x - PLAYER_START_X) / (oldFirst - PLAYER_START_X), 0, 1);
+    state.lastX = scene.player.x + (newFirst - oldFirst) * progress;
     scene.scene.restart();
   }
 }

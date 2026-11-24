@@ -3,6 +3,8 @@ export const PIXEL = 3;
 
 const CHUNK = 192;
 const BLEED = 64;
+const CAVE_X = 151;
+const CAVE_Y = 75;
 const GRASS = ['#426e55', '#477759', '#4c7c5c', '#527f5d', '#568660'];
 const SOIL = ['#ab7758', '#b78460', '#c08e64', '#c9966e', '#d09d73'];
 const ROCK = ['#392b39', '#553b41', '#72504a', '#95644e', '#b48161', '#cb9770'];
@@ -121,8 +123,9 @@ function pathAt(x, y) {
   const width = 12 + 3 * Math.sin(x / 25) + 1.5 * Math.sin(x / 3);
   const trail = width - Math.abs(y - center);
   // A branch connects the first cave to the main trail.
-  const caveX = 269 + Math.sin((y - 64) * 0.077) * 12 + (y - 64) * 0.28;
-  const branch = y >= 48 && y <= center ? 7 + Math.sin(y * 0.4) - Math.abs(x - caveX) : -10;
+  const fromCave = y - CAVE_Y;
+  const caveX = CAVE_X + Math.sin(fromCave * 0.077) * 12 + fromCave * 0.28;
+  const branch = fromCave >= -16 && y <= center ? 7 + Math.sin(y * 0.4) - Math.abs(x - caveX) : -10;
   return Math.max(trail, branch);
 }
 
@@ -172,7 +175,9 @@ function graveyardChunk(start, width, height) {
       }
     }
     shrub(ctx, left + 38 + Math.floor(rnd() * 26), 85 + Math.floor(rnd() * 25), cell * 7 + 391);
-    shrub(ctx, left + 142 + Math.floor(rnd() * 25), 65 + Math.floor(rnd() * 19), cell * 7 + 392);
+    const shrubX = left + 142 + Math.floor(rnd() * 25);
+    const shrubY = 65 + Math.floor(rnd() * 19);
+    if (pathAt(shrubX, shrubY) < -15) shrub(ctx, shrubX, shrubY, cell * 7 + 392);
     shrub(ctx, left + 93 + Math.floor(rnd() * 20), 159 + Math.floor(rnd() * 9), cell * 7 + 393);
   }
   // Back ridge: the rock sequence is fixed in world coordinates across texture boundaries.
@@ -180,7 +185,7 @@ function graveyardChunk(start, width, height) {
     ridge(ctx, x, x + 80, (p) => Math.floor(24 + 12 * Math.sin(p / 63) + 6 * Math.cos(p / 22)), 22, x + 4102);
   }
   if (start < 28) ridge(ctx, -20, 21, (x) => 89 + Math.floor(6 * Math.sin(x / 10)), 20, 801);
-  if (start < 298 && end > 240) cave(ctx, 269, 64, 782);
+  if (start < CAVE_X + 29 && end > CAVE_X - 29) cave(ctx, CAVE_X, CAVE_Y, 782);
   // Raised foreground ledges frame the trail without covering its walkable strip.
   for (let x = Math.floor((start - BLEED) / 196) * 196; x < end + BLEED; x += 196) {
     ridge(ctx, x + 139, x + 184, (p) => Math.max(gravePathY(p * PIXEL) / PIXEL + 18, 166 + Math.floor(7 * Math.sin(p / 11))), 20, x + 120);
