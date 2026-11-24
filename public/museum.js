@@ -186,6 +186,7 @@ class MuseumScene extends Phaser.Scene {
     this.player = this.add.image(startX, FLOOR, 'dev-a').setOrigin(0.5, 1).setScale(SCALE).setDepth(5);
     this.bubble = this.makeBubble();
     this.makeHud();
+    this.drawGroundHints();
     if (state.lastX == null) this.time.delayedCall(500, () => this.say(exhibits.length ? (this.night ? NIGHT_GREETING : GREETING) : GREETING_EMPTY, 6500));
     if (this.night) this.makeBat();
 
@@ -297,12 +298,61 @@ class MuseumScene extends Phaser.Scene {
     return btn;
   }
 
+  // The basic controls and the Hacksgiving note, painted on the ground and fixed to the screen.
+  drawGroundHints() {
+    const night = this.night;
+    const ink = night ? '#e8e2ff' : '#f3e6c8';
+    const accent = night ? 0xc9c4e6 : 0xd9a441;
+    const line = this.add.container(0, 0).setScrollFactor(0).setDepth(25);
+    const items = [['←'], ['→'], 'walk', null, ['↑'], 'enter', null, ['Esc'], 'leave'];
+    const g = this.add.graphics();
+    line.add(g);
+    let x = 0;
+    const y = FLOOR + 30;
+    const keys = [];
+    for (const item of items) {
+      if (item === null) {
+        x += 22;
+      } else if (Array.isArray(item)) {
+        const t = this.add.text(0, y, item[0], textStyle(FONT_BODY, 22, '#1a1016')).setOrigin(0.5);
+        const w = Math.max(28, Math.ceil(t.width) + 14);
+        t.x = x + w / 2;
+        keys.push({ x, w });
+        line.add(t);
+        x += w + 6;
+      } else {
+        const t = this.add.text(x + 2, y, item, textStyle(FONT_BODY, 22, ink)).setOrigin(0, 0.5);
+        line.add(t);
+        x += Math.ceil(t.width) + 10;
+      }
+    }
+    const offset = Math.round((W - x) / 2);
+    line.x = offset;
+    // backdrop strip so the hints stay readable on the checkered floor
+    const strip = this.add.graphics().setScrollFactor(0).setDepth(24);
+    strip.fillStyle(night ? 0x000000 : 0x1a1016, night ? 0.45 : 0.9).fillRect(offset - 18, FLOOR + 12, x + 36, 70);
+    for (const k of keys) {
+      g.fillStyle(0x000000, 0.5).fillRect(k.x + 3, y - 12 + 3, k.w, 26);
+      g.fillStyle(accent, 1).fillRect(k.x, y - 12, k.w, 26);
+    }
+    const note = this.add
+      .text(W / 2, FLOOR + 64, 'A personal agent living on a Fly.io Sprite · Built for Hacksgiving 2026', textStyle(FONT_BODY, 18, night ? '#a9a5c4' : '#c9c2b6'))
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(25)
+      .setInteractive({ useHandCursor: true });
+    note.on('pointerdown', () => window.open('https://fly.io/hacksgiving/', '_blank', 'noopener'));
+  }
+
   makeHud() {
     const pad = 12;
     this.hud = {};
     const sound = this.makeButton(-pad, pad, isSoundOn() ? 'SOUND ON ' : 'SOUND OFF', () => setSound(!isSoundOn()));
     const museum = this.makeButton(-(pad + sound.w + 18), pad, 'MUSEUM', () => setTheme('museum'), { active: !this.night });
-    this.makeButton(-(pad + sound.w + 18 + museum.w + 6), pad, 'GRAVEYARD', () => setTheme('graveyard'), { active: this.night });
+    const grave = this.makeButton(-(pad + sound.w + 18 + museum.w + 6), pad, 'GRAVEYARD', () => setTheme('graveyard'), { active: this.night });
+    this.makeButton(-(pad + sound.w + 18 + museum.w + 6 + grave.w + 18), pad, 'INSTRUCTIONS', (btn, pointer) =>
+      openHelp(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
+    );
     this.hud.sound = sound;
     if (state.data.guest) {
       this.makeButton(pad, pad, this.night ? "< CURATOR'S GRAVEYARD" : "< CURATOR'S MUSEUM", () => {
@@ -1071,7 +1121,11 @@ function toggleList(force) {
   document.getElementById('list-toggle').setAttribute('aria-expanded', String(!list.hidden));
 }
 
-document.getElementById('list-toggle').addEventListener('click', () => toggleList());
+document.getElementById('list-toggle').addEventListener('click', () => {
+  toggleList();
+  document.getElementById('help-dialog').close();
+  if (!document.getElementById('list').hidden) document.getElementById('list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 // ---------- theme: museum or graveyard ----------
 const PLACE = { museum: 'Museum', graveyard: 'Graveyard' };
@@ -1114,6 +1168,7 @@ window.addEventListener('keydown', (e) => {
   if (key === 'm') setSound(!isSoundOn());
   if (key === 't') setTheme(night() ? 'museum' : 'graveyard');
   if (key === 'g') openDigDialog();
+  if (key === 'h' || key === '?') openHelp();
 });
 initSound();
 
@@ -1184,6 +1239,31 @@ digDialog.addEventListener('click', (e) => {
   if (e.target === digDialog) digDialog.close();
 });
 document.getElementById('visit-cancel').addEventListener('click', () => digDialog.close());
+// "Instructions": every control beyond the basics painted on the ground.
+const helpDialog = document.getElementById('help-dialog');
+function openHelp(from = null) {
+  if (helpDialog.open || digDialog.open || state.open) return;
+  state.scene?.pauseInput(true);
+  helpDialog.showModal();
+  if (!helpDialog.animate || reduceMotion) return;
+  const box = helpDialog.getBoundingClientRect();
+  const origin = from ? `${from.x - box.left}px ${from.y - box.top}px` : '50% 0%';
+  helpDialog.animate(
+    [
+      { transform: 'scale(0.08)', opacity: 0, transformOrigin: origin },
+      { transform: 'scale(1)', opacity: 1, transformOrigin: origin },
+    ],
+    { duration: 600, easing: 'steps(6, jump-end)' },
+  );
+}
+helpDialog.addEventListener('close', () => {
+  if (!state.open) state.scene?.pauseInput(false);
+});
+helpDialog.addEventListener('click', (e) => {
+  if (e.target === helpDialog) helpDialog.close();
+});
+document.getElementById('help-close').addEventListener('click', () => helpDialog.close());
+
 document.getElementById('dig-again').addEventListener('click', (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   openDigDialog({ x: r.left + r.width / 2, y: r.top + r.height / 2 });

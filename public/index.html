@@ -39,22 +39,37 @@
         <button type="button" data-move="1" aria-label="Walk right">▶</button>
       </nav>
 
-      <p class="hint">
-        <kbd>←</kbd> <kbd>→</kbd> walk · <kbd>↑</kbd> enter a room · <kbd>Esc</kbd> leave · <kbd>M</kbd> sound · <kbd>T</kbd> theme · <kbd>G</kbd> dig yours ·
-        <button type="button" id="list-toggle" class="linklike" aria-expanded="false" aria-controls="list">all exhibits</button>
-      </p>
-
       <section id="list" hidden aria-label="All exhibits">
         <ul></ul>
       </section>
     </main>
 
-    <footer class="colophon">
-      A personal agent living on a <a href="https://fly.io/sprites" target="_blank" rel="noopener">Fly.io Sprite</a>.
-      Built for Hacksgiving 2026.
-    </footer>
-
     <dialog id="room" aria-labelledby="room-title"></dialog>
+    <dialog id="help-dialog" class="dig-dialog help-dialog" aria-labelledby="help-title">
+      <div class="help">
+        <h2 id="help-title">Instructions</h2>
+        <dl class="keys">
+          <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>walk (or click a grave or door)</dd>
+          <dt><kbd>↑</kbd> <kbd>Enter</kbd></dt><dd>visit the grave in front of you</dd>
+          <dt><kbd>Esc</kbd></dt><dd>leave again</dd>
+          <dt><kbd>G</kbd></dt><dd>dig up your own graveyard</dd>
+          <dt><kbd>T</kbd></dt><dd>switch between graveyard and museum</dd>
+          <dt><kbd>M</kbd></dt><dd>8-bit sound on or off</dd>
+          <dt><kbd>H</kbd></dt><dd>these instructions</dd>
+        </dl>
+        <p>
+          <button type="button" id="list-toggle" class="linklike" aria-expanded="false" aria-controls="list">Show all graves as a list</button>
+        </p>
+        <p class="about">
+          Uncle Gerd is a personal agent living on a <a href="https://fly.io/sprites" target="_blank" rel="noopener">Fly.io Sprite</a>, built for
+          <a href="https://fly.io/hacksgiving/" target="_blank" rel="noopener">Hacksgiving 2026</a>.
+          <a href="https://github.com/jmartsch/uncle-gerds-graveyard-of-dead-side-projects" target="_blank" rel="noopener">Source on GitHub</a>.
+        </p>
+        <div class="visit-actions">
+          <button type="button" id="help-close" autofocus>Got it</button>
+        </div>
+      </div>
+    </dialog>
     <dialog id="dig-dialog" class="dig-dialog" aria-labelledby="dig-dialog-title">
       <form id="visit-form" class="visit" method="dialog">
         <h2 id="dig-dialog-title">Dig up your own graveyard</h2>
