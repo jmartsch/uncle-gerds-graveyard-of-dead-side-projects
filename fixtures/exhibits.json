@@ -1,0 +1,110 @@
+{
+  "generatedAt": "2026-11-24T12:00:00.000Z",
+  "owner": "you",
+  "exhibits": [
+    {
+      "id": "weather-dashboard",
+      "repo": "you/weather-dashboard",
+      "url": "https://github.com",
+      "private": false,
+      "title": "The Weather Dashboard",
+      "years": "2022–2022",
+      "born": "2022-03-02T19:12:00Z",
+      "died": "2022-04-11T23:48:00Z",
+      "lifespanDays": 40,
+      "language": "JavaScript",
+      "stars": 3,
+      "openIssues": 4,
+      "lastWords": "tomorrow just the layout",
+      "causeOfDeath": "The layout was scheduled for tomorrow. Tomorrow never came.",
+      "plaque": "A dashboard that promised to show the weather in five cities at once. It showed it in one, on desktop only, on good days.",
+      "uncle": {
+        "line": "Ach, Junge. Forty days of commits and then \"tomorrow just the layout\". In 1998 we finished things. Mostly.",
+        "mood": "told_you_so"
+      },
+      "odds": { "revival": 0.71, "worthIt": 0.44, "moodConfidence": 0.82, "model": "jev-latest (demo)" },
+      "quest": {
+        "title": "#3 Mobile layout breaks below 400px",
+        "url": null,
+        "kind": "issue",
+        "why": "It is the bug that stopped you, so it is the bug that brings you back."
+      },
+      "artifacts": [
+        { "kind": "commit", "label": "tomorrow just the layout", "date": "2022-04-11T23:48:00Z", "url": null },
+        { "kind": "commit", "label": "add berlin, again", "date": "2022-04-09T21:02:00Z", "url": null },
+        { "kind": "commit", "label": "api key in env now (sorry)", "date": "2022-04-02T18:30:00Z", "url": null },
+        { "kind": "issue", "label": "#3 Mobile layout breaks below 400px", "date": "2022-04-10T08:00:00Z", "url": null },
+        { "kind": "issue", "label": "#4 Dark mode?", "date": "2022-04-11T09:00:00Z", "url": null }
+      ],
+      "textSource": "demo"
+    },
+    {
+      "id": "habit-tracker-3000",
+      "repo": "you/habit-tracker-3000",
+      "url": "https://github.com",
+      "private": false,
+      "title": "Habit Tracker 3000",
+      "years": "2021–2021",
+      "born": "2021-01-01T10:00:00Z",
+      "died": "2021-01-19T22:10:00Z",
+      "lifespanDays": 18,
+      "language": "TypeScript",
+      "stars": 1,
+      "openIssues": 1,
+      "lastWords": "wip: streaks",
+      "causeOfDeath": "Lost the habit of working on the habit tracker.",
+      "plaque": "Started on New Year's Day to track daily habits. Its own streak ended on January 19.",
+      "uncle": {
+        "line": "A habit tracker that lasted eighteen days. Na ja, that is still longer than my diet.",
+        "mood": "nostalgic"
+      },
+      "odds": { "revival": 0.38, "worthIt": 0.27, "moodConfidence": 0.64, "model": "jev-latest (demo)" },
+      "quest": {
+        "title": "#1 Streak counter resets at midnight UTC",
+        "url": null,
+        "kind": "issue",
+        "why": "One timezone fix and the streaks finally mean something."
+      },
+      "artifacts": [
+        { "kind": "commit", "label": "wip: streaks", "date": "2021-01-19T22:10:00Z", "url": null },
+        { "kind": "commit", "label": "confetti when you complete a habit", "date": "2021-01-12T20:41:00Z", "url": null },
+        { "kind": "issue", "label": "#1 Streak counter resets at midnight UTC", "date": "2021-01-18T07:00:00Z", "url": null }
+      ],
+      "textSource": "demo"
+    },
+    {
+      "id": "rewrite-it-in-rust",
+      "repo": "you/rewrite-it-in-rust",
+      "url": "https://github.com",
+      "private": false,
+      "title": "Rewrite It In Rust",
+      "years": "2023–2023",
+      "born": "2023-06-03T09:00:00Z",
+      "died": "2023-06-24T01:15:00Z",
+      "lifespanDays": 21,
+      "language": "Rust",
+      "stars": 0,
+      "openIssues": 0,
+      "lastWords": "fight the borrow checker, round 47",
+      "causeOfDeath": "Lost to the borrow checker on points.",
+      "plaque": "An ambitious plan to rewrite a working shell script in Rust. The shell script is still in use today.",
+      "uncle": {
+        "line": "Forty-seven rounds against the borrow checker. Respect, Junge. But the shell script still works, ja?",
+        "mood": "baffled"
+      },
+      "odds": { "revival": 0.12, "worthIt": 0.09, "moodConfidence": 0.71, "model": "jev-latest (demo)" },
+      "quest": {
+        "title": "Make it start again on a modern runtime",
+        "url": null,
+        "kind": "generic",
+        "why": "There are no open issues. There is also no working code. Start there."
+      },
+      "artifacts": [
+        { "kind": "commit", "label": "fight the borrow checker, round 47", "date": "2023-06-24T01:15:00Z", "url": null },
+        { "kind": "commit", "label": "clone everything, ask questions later", "date": "2023-06-20T23:59:00Z", "url": null },
+        { "kind": "commit", "label": "initial commit (blazingly fast)", "date": "2023-06-03T09:00:00Z", "url": null }
+      ],
+      "textSource": "demo"
+    }
+  ]
+}

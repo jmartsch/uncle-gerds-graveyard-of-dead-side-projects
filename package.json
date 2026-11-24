@@ -1,0 +1,19 @@
+{
+  "name": "uncle-gerds-museum",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A personal agent on a Fly.io Sprite that turns your dead side projects into a walkable pixel museum and tries to bring them back to life.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "FIXTURES=1 node server.js",
+    "scan": "node scripts/scan.js",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {
+    "@fly/sprites": "^0.2.5"
+  }
+}
