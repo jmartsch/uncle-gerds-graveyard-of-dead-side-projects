@@ -30,6 +30,15 @@ const GREETING_EMPTY = 'Na ja. No dead projects at all? Come back in a year, Jun
 const GRAVEYARD_QUESTION = 'Uncle Gerd, where are we?';
 const GRAVEYARD_ANSWER = 'Come on, Junge. Let’s look around.';
 const EASTER_EGG_HINT = 'Maybe we’ll find a few Easter eggs along the way.';
+// At the very end of the trail: an empty grave, waiting for the next side project.
+const END_EXTRA = 340; // room behind the crypt for the empty grave
+const ENDING = [
+  ['player', 'We reached the end. What now?', 2600],
+  ['uncle', 'Ach, Junge. Nobody knows what the future holds.', 3200],
+  ['uncle', 'But I keep this one ready. For your next side project.', 3800],
+  ['player', '…I haven’t even started it yet.', 2600],
+  ['uncle', 'Na eben.', 2600],
+];
 const graveyardSignLine = (owner) => owner
   ? `Ah, this is where @${owner}’s old projects are buried.`
   : 'Ah, this is where the old projects are buried.';
@@ -68,7 +77,7 @@ function doorQuip(ex, index) {
 }
 
 // ---------- state ----------
-const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, graveyardSignShown: false, easterEggHintShown: false, showControls: false };
+const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, graveyardSignShown: false, easterEggHintShown: false, showControls: false, endingShown: false };
 const night = () => state.theme === 'graveyard';
 const snes = () => night() && state.graveyardStyle === 'snes';
 const firstExhibitX = () => snes() ? FIRST_SNES_GRAVE : night() ? FIRST_GRAVE : FIRST_MUSEUM_DOOR;
@@ -201,7 +210,7 @@ class MuseumScene extends Phaser.Scene {
     this.snes = snes();
     this.dark = this.night && graveyardLighting() === 'dark';
     this.firstExhibitX = firstExhibitX();
-    this.worldW = Math.max(W, this.firstExhibitX + Math.max(exhibits.length - 1, 0) * DOOR_GAP + 620);
+    this.worldW = Math.max(W, this.firstExhibitX + Math.max(exhibits.length - 1, 0) * DOOR_GAP + 620 + (exhibits.length ? END_EXTRA : 0));
 
     this.makeTexture('dev-a', DEV_A);
     this.makeTexture('dev-b', DEV_B);
@@ -230,10 +239,12 @@ class MuseumScene extends Phaser.Scene {
       this.drawEntrance();
     }
     this.doors = exhibits.map((ex, i) => this.drawDoor(ex, this.firstExhibitX + i * DOOR_GAP));
-    const shopX = this.worldW - 230;
+    const shopX = this.worldW - 230 - (exhibits.length ? END_EXTRA : 0);
     if (this.snes) this.drawCrypt(shopX);
     else if (this.night) this.drawClassicCrypt(shopX);
     else this.drawGiftShop(shopX);
+    this.emptyGraveX = exhibits.length ? this.worldW - 260 : null;
+    if (this.emptyGraveX) this.drawEmptyGrave(this.emptyGraveX);
 
     // Coming back from a theme switch: stand where you stood, with Uncle Gerd already guiding.
     const startX = state.lastX ?? PLAYER_START_X;
@@ -256,6 +267,9 @@ class MuseumScene extends Phaser.Scene {
     this.lanternHit = this.snes ? this.makeLanternSwitch() : null;
     this.makeHud();
     this.drawGroundHints();
+    this.ending = null;
+    this.endingBubble = this.emptyGraveX ? this.makeBubble().setDepth(11) : null;
+    if (state.endingShown) this.showReviveButton();
     if (!state.hasWalked) {
       if (this.night && exhibits.length) {
         this.playerQuestion = this.makeBubble().setDepth(11);
@@ -792,6 +806,107 @@ class MuseumScene extends Phaser.Scene {
     this.add.text(x, y - 24, 'CLOSED FOREVER', textStyle(FONT_BODY, 15, '#ddc5ab')).setOrigin(0.5);
   }
 
+  // The end of the trail: a freshly dug, empty grave (an empty plinth in the museum) and a RESERVED sign beside it.
+  // The boy stops at its edge, so the grave, the sign and both speech bubbles never overlap.
+  endBase() {
+    return this.snes ? this.walkY(this.emptyGraveX) - 34 : FLOOR - 6;
+  }
+
+  drawEmptyGrave(x) {
+    const base = this.endBase();
+    const g = this.add.graphics().setDepth(1);
+    const dark = this.dark;
+    const c = !this.night
+      ? { wall: 0x1a1016, face: 0xd9a441, wood: 0x8a6420, ink: '#1a1016', light: 0xf3e6c8 }
+      : this.snes
+        ? { pit: 0x110c0a, wall: dark ? 0x2b2433 : 0x4a3426, dirt: dark ? 0x3d3546 : 0x6b4c35, light: dark ? 0x5a5068 : 0x8a6447, wood: dark ? 0x4b4458 : 0x79533b, face: dark ? 0x686582 : 0x9a694b, ink: '#f3e6c8' }
+        : { pit: 0x05040a, wall: 0x2a2540, dirt: dark ? 0x3a3450 : 0x5e5470, light: dark ? 0x58507a : 0x857ba0, wood: 0x6f6c84, face: 0x8f8ca0, ink: '#14101f' };
+    if (!this.night) {
+      // Museum: an empty plinth behind a short velvet rope.
+      g.fillStyle(0x1a1016, 1).fillRect(x - 40, base - 90, 80, 90);
+      g.fillStyle(0xd9a441, 1).fillRect(x - 46, base - 98, 92, 8).fillRect(x - 46, base - 6, 92, 6);
+      g.fillStyle(0x8a6420, 1).fillRect(x - 64, base - 54, 6, 54).fillRect(x + 58, base - 54, 6, 54);
+      g.fillStyle(0x7a2f22, 1).fillRect(x - 58, base - 48, 116, 5);
+    } else {
+      // The open pit, and the dirt pile with the shovel still in it.
+      g.fillStyle(c.wall, 1).fillRect(x - 46, base - 28, 92, 28);
+      g.fillStyle(c.pit, 1).fillRect(x - 38, base - 22, 76, 22);
+      g.fillStyle(c.light, 1).fillRect(x - 46, base - 28, 92, 4);
+      g.fillStyle(c.dirt, 1).fillRect(x + 186, base - 22, 60, 22).fillRect(x + 196, base - 34, 40, 12).fillRect(x + 206, base - 42, 20, 8);
+      g.fillStyle(c.light, 1).fillRect(x + 196, base - 34, 40, 3).fillRect(x + 206, base - 42, 20, 3);
+      g.fillStyle(c.wood, 1).fillRect(x + 218, base - 92, 5, 54);
+      g.fillStyle(c.light, 1).fillRect(x + 212, base - 96, 17, 5);
+      g.fillStyle(0x9aa0aa, 1).fillRect(x + 213, base - 42, 15, 12);
+    }
+    // The sign on a short post, right of the grave.
+    const sx = x + 112;
+    g.fillStyle(c.wood, 1).fillRect(sx - 4, base - 40, 8, 40);
+    g.fillStyle(c.wall, 1).fillRect(sx - 66, base - 86, 132, 48);
+    g.fillStyle(c.face, 1).fillRect(sx - 62, base - 82, 124, 40);
+    this.add.text(sx, base - 71, 'RESERVED', textStyle(FONT_PIXEL, 8, c.ink)).setOrigin(0.5).setDepth(1);
+    this.add.text(sx, base - 53, 'next side project', textStyle(FONT_BODY, 16, c.ink)).setOrigin(0.5).setDepth(1);
+  }
+
+  // Plays the little scene at the empty grave once. Walking far away interrupts it, so it can run again.
+  updateEnding(time) {
+    if (!this.emptyGraveX || state.endingShown) return;
+    const trigger = this.emptyGraveX - 150;
+    if (!this.ending) {
+      if (this.player.x < trigger) return;
+      this.ending = { step: -1, nextAt: time };
+    }
+    if (this.player.x < trigger - 260) {
+      this.ending = null;
+      this.endingBubble.setVisible(false);
+      this.bubble.setVisible(false);
+      return;
+    }
+    if (this.endingBubble.visible) this.drawPlayerBubble(this.endingBubble, this.endingBubble.text.text);
+    if (time < this.ending.nextAt) return;
+    const step = ++this.ending.step;
+    if (step >= ENDING.length) {
+      this.endingBubble.setVisible(false);
+      state.endingShown = true;
+      this.ending = null;
+      this.showReviveButton();
+      return;
+    }
+    const [who, line, ms] = ENDING[step];
+    if (who === 'player') {
+      this.bubbleTimer?.remove();
+      this.bubble.setVisible(false);
+      this.drawPlayerBubble(this.endingBubble, line);
+    } else {
+      this.endingBubble.setVisible(false);
+      this.say(line, step === ENDING.length - 1 ? 4000 : ms);
+    }
+    this.ending.nextAt = time + ms;
+  }
+
+  // After the scene: a way back to the grave with the best revival odds.
+  showReviveButton() {
+    if (!this.emptyGraveX || this.reviveButton) return;
+    this.reviveButton = this.makeButton(this.emptyGraveX + 112, this.endBase() - 136, 'REVIVE ONE INSTEAD >', () => this.goToBestBet(), {
+      fixed: false,
+      anchor: 'center',
+      size: 9,
+      depth: 2,
+    });
+  }
+
+  goToBestBet() {
+    const alive = (d) => d.ex.revival?.status === 'live';
+    const pool = this.doors.some((d) => !alive(d)) ? this.doors.filter((d) => !alive(d)) : this.doors;
+    const best = pool.reduce((a, b) => ((b.ex.odds?.revival ?? -1) > (a.ex.odds?.revival ?? -1) ? b : a), pool[0]);
+    if (!best) return;
+    this.target = null;
+    this.player.x = best.x;
+    this.player.setFlipX(false);
+    this.uncle.x = best.x - 110;
+    this.cameras.main.centerOn(best.x, H / 2);
+    openRoom(best.ex.id);
+  }
+
   makeFlyer() {
     this.flyerKind = this.dark ? 'bat' : 'bird';
     const flyer = this.add.image(-40, 120, `${this.flyerKind}-up`)
@@ -967,7 +1082,8 @@ class MuseumScene extends Phaser.Scene {
 
     if (this.playerReaction?.visible) dir = 0;
     if (dir) {
-      const nextX = Phaser.Math.Clamp(this.player.x + (dir * SPEED * delta) / 1000, 40, this.worldW - 40);
+      const rightEdge = this.emptyGraveX ? this.emptyGraveX - 100 : this.worldW - 40; // stop at the edge of the empty grave
+      const nextX = Phaser.Math.Clamp(this.player.x + (dir * SPEED * delta) / 1000, 40, rightEdge);
       if (!state.hasWalked && nextX !== this.player.x) {
         state.hasWalked = true;
         if (this.playerQuestion?.visible) {
@@ -1003,6 +1119,7 @@ class MuseumScene extends Phaser.Scene {
     if (this.night) this.updateFlyer(time, delta);
 
     if (this.night) this.updateGraveyardDialogue(previousX);
+    this.updateEnding(time);
 
     // Uncle Gerd starts guiding once you walk past him, and trails a few steps behind.
     if (!this.guiding && this.player.x > UNCLE_X + 140) {
