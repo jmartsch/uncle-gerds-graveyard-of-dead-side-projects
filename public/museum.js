@@ -172,6 +172,34 @@ function toast(msg) {
 
 const textStyle = (font, size, color, extra = {}) => ({ fontFamily: font, fontSize: `${size}px`, color, ...extra });
 
+// Cuts `str` with an ellipsis until it is no wider than `maxWidth` at the text's font.
+function truncate(text, str, maxWidth) {
+  if (text.setText(str).width <= maxWidth) return str;
+  let s = str;
+  while (s.length > 1 && text.setText(`${s}…`).width > maxWidth) s = s.slice(0, -1);
+  return `${s.replace(/[\s-]+$/, '')}…`;
+}
+
+// Wraps text into at most `maxLines` lines no wider than `maxWidth`, breaking at spaces and after hyphens
+// (Phaser's own wrap only breaks at spaces). Whatever still does not fit is cut off with an ellipsis.
+function fitText(text, str, maxWidth, maxLines) {
+  const lines = [];
+  for (const tok of str.split(/(?<=-)|\s+/).filter(Boolean)) {
+    const last = lines.length - 1;
+    const glue = last >= 0 && !lines[last].endsWith('-') ? ' ' : '';
+    if (last >= 0 && text.setText(lines[last] + glue + tok).width <= maxWidth) lines[last] += glue + tok;
+    else lines.push(tok);
+  }
+  const kept = lines.slice(0, maxLines).map((l) => truncate(text, l, maxWidth));
+  if (lines.length > maxLines && !kept[maxLines - 1].endsWith('…')) kept[maxLines - 1] = truncate(text, `${kept[maxLines - 1]}…`, maxWidth);
+  return text.setText(kept.join('\n'));
+}
+
+// Cuts a single-line text with an ellipsis so it is no wider than `maxWidth`.
+function cutToFit(text, maxWidth) {
+  return text.setText(truncate(text, text.text, maxWidth));
+}
+
 // ---------- the hallway ----------
 class MuseumScene extends Phaser.Scene {
   constructor() {
@@ -460,14 +488,11 @@ class MuseumScene extends Phaser.Scene {
     }
     g.fillStyle(frame, 1).fillRect(x - pw / 2 - 4, py - 4, pw + 8, ph + 8);
     g.fillStyle(this.night ? 0x14101f : 0x1a1016, 1).fillRect(x - pw / 2, py, pw, ph);
-    this.add
-      .text(x, py + 22, ex.title.toUpperCase(), textStyle(FONT_PIXEL, 10, '#f3e6c8', { align: 'center', wordWrap: { width: pw - 20 }, maxLines: 2, lineSpacing: 4 }))
-      .setOrigin(0.5);
+    fitText(this.add.text(x, py + 22, '', textStyle(FONT_PIXEL, 10, '#f3e6c8', { align: 'center', lineSpacing: 4 })).setOrigin(0.5), ex.title.toUpperCase(), pw - 20, 2);
     // The real repository name under the exhibit title.
-    let repoName = (ex.repo || '').split('/').pop() || ex.id;
-    if (repoName.length > 26) repoName = `${repoName.slice(0, 25)}…`;
-    this.add.text(x, py + 50, repoName, textStyle(FONT_BODY, 18, this.night ? '#a9a5c4' : '#c9c2b6')).setOrigin(0.5);
-    this.add.text(x, py + ph - 13, `${ex.years} · ${ex.language}`, textStyle(FONT_BODY, 20, '#d9a441')).setOrigin(0.5);
+    const repoName = (ex.repo || '').split('/').pop() || ex.id;
+    cutToFit(this.add.text(x, py + 50, repoName, textStyle(FONT_BODY, 18, this.night ? '#a9a5c4' : '#c9c2b6')).setOrigin(0.5), pw - 20);
+    cutToFit(this.add.text(x, py + ph - 13, `${ex.years} · ${ex.language}`, textStyle(FONT_BODY, 20, '#d9a441')).setOrigin(0.5), pw - 20);
 
     const cx = x + 132;
     const cy = FLOOR - 150;
@@ -701,29 +726,27 @@ class MuseumScene extends Phaser.Scene {
   drawGrave(ex, x) {
     const feet = this.walkY(x) - 20;
     const door = this.add.image(x, feet, 'grave').setOrigin(0.5, 1).setScale(PIXEL).setDepth(1).setInteractive({ useHandCursor: true });
-    const plaqueY = feet - door.displayHeight - 96;
+    const width = 224;
+    const height = 105;
+    // The sign grows upwards; its bottom edge stays just above the tombstone.
+    const plaqueY = feet - door.displayHeight - 15 - height;
     this.add.ellipse(x + 4, feet, 96, 26, 0x493c31, 0.65);
     const post = this.add.graphics();
-    post.fillStyle(0x4a382e, 1).fillRect(x - 5, plaqueY + 64, 10, 39);
-    post.fillStyle(0x79533b, 1).fillRect(x - 5, plaqueY + 64, 4, 36);
-    const width = 224;
-    this.drawGraveSign(x, plaqueY, width, 81);
-    this.add.text(x, plaqueY + 19, ex.title.toUpperCase(), textStyle(FONT_PIXEL, 9, '#f3e6c8', {
-      align: 'center', wordWrap: { width: width - 22 }, maxLines: 2, lineSpacing: 3,
-    })).setOrigin(0.5);
-    let repoName = (ex.repo || '').split('/').pop() || ex.id;
-    if (repoName.length > 26) repoName = `${repoName.slice(0, 25)}…`;
-    this.add.text(x, plaqueY + 41, repoName, textStyle(FONT_BODY, 18, '#ddc5ab')).setOrigin(0.5);
-    const details = this.add.text(x - 97, plaqueY + 63, `${ex.years} · ${ex.language}`, textStyle(FONT_BODY, 17, '#e7c28a')).setOrigin(0, 0.5);
-    if (details.width > 145) details.setFontSize(Math.floor(17 * 145 / details.width));
-    this.add.text(x + 74, plaqueY + 54, t('revivalSign'), textStyle(FONT_BODY, 11, '#ddc5ab')).setOrigin(0.5);
-    const odds = this.add.text(x + 74, plaqueY + 66, '', textStyle(FONT_PIXEL, 9, '#f3e6c8')).setOrigin(0.5);
+    post.fillStyle(0x4a382e, 1).fillRect(x - 5, plaqueY + height - 17, 10, 39);
+    post.fillStyle(0x79533b, 1).fillRect(x - 5, plaqueY + height - 17, 4, 36);
+    this.drawGraveSign(x, plaqueY, width, height);
+    fitText(this.add.text(x, plaqueY + 20, '', textStyle(FONT_PIXEL, 9, '#f3e6c8', { align: 'center', lineSpacing: 3 })).setOrigin(0.5), ex.title.toUpperCase(), width - 22, 2);
+    const repoName = (ex.repo || '').split('/').pop() || ex.id;
+    cutToFit(this.add.text(x, plaqueY + 43, repoName, textStyle(FONT_BODY, 18, '#ddc5ab')).setOrigin(0.5), width - 22);
+    cutToFit(this.add.text(x, plaqueY + 64, `${ex.years} · ${ex.language}`, textStyle(FONT_BODY, 17, '#e7c28a')).setOrigin(0.5), width - 22);
+    cutToFit(this.add.text(x - 4, plaqueY + 86, t('revivalSign'), textStyle(FONT_BODY, 14, '#ddc5ab')).setOrigin(1, 0.5), width / 2 - 15);
+    const odds = this.add.text(x + 4, plaqueY + 87, '', textStyle(FONT_PIXEL, 9, '#f3e6c8')).setOrigin(0, 0.5);
     const status = this.add.text(x, plaqueY - 13, '', textStyle(FONT_PIXEL, 9, '#6dff9e', { stroke: '#272021', strokeThickness: 3 })).setOrigin(0.5);
     const prompt = this.add.text(x, feet + 18, t('visitPrompt'), textStyle(FONT_PIXEL, 9, '#2d211e', {
       backgroundColor: '#efd4a6', padding: { x: 7, y: 5 },
     })).setOrigin(0.5, 0).setDepth(6).setVisible(false);
     door.on('pointerdown', () => this.walkTo(ex.id));
-    this.add.zone(x, plaqueY, width, 81).setOrigin(0.5, 0).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.walkTo(ex.id));
+    this.add.zone(x, plaqueY, width, height).setOrigin(0.5, 0).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.walkTo(ex.id));
 
     const d = { ex, x, door, odds, status, prompt, blink: null };
     this.updateDoor(d, ex);
