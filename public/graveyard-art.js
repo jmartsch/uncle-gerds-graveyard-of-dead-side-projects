@@ -386,7 +386,7 @@ export function addGraveyardTerrain(scene, width, height, lighting) {
   const worldTiles = Math.ceil(width / PIXEL);
   for (let start = 0; start < worldTiles; start += CHUNK) {
     const size = Math.min(CHUNK, worldTiles - start);
-    const key = `graveyard-land-${lighting}-${start}-${size}`;
+    const key = `graveyard-land-${lighting}-${start}-${size}-${height}`;
     if (!scene.textures.exists(key)) scene.textures.addCanvas(key, graveyardChunk(start, size, height / PIXEL, lighting));
     scene.add.image(start * PIXEL, 0, key).setOrigin(0).setScale(PIXEL).setDepth(-10);
   }

@@ -6,6 +6,16 @@ import { t, getLang, locale, storeLang, translatePage, serverLine } from './i18n
 // ---------- constants ----------
 const W = 960;
 const H = 540;
+// The view always fills the whole window: wider windows see more to the sides,
+// narrower or taller ones more ground below. Nothing gets cropped, no bars.
+const viewSize = () => {
+  const el = document.getElementById('game');
+  const w = el?.clientWidth || innerWidth;
+  const h = el?.clientHeight || innerHeight;
+  return { w: Math.max(W, Math.round((H * w) / h)), h: Math.max(H, Math.round((W * h) / w)) };
+};
+let VW = W;
+let VH = H;
 const FLOOR = 452;
 const SCALE = 4;
 const FIRST_MUSEUM_DOOR = 660;
@@ -213,7 +223,7 @@ class MuseumScene extends Phaser.Scene {
     this.snes = snes();
     this.dark = this.night && graveyardLighting() === 'dark';
     this.firstExhibitX = firstExhibitX();
-    this.worldW = Math.max(W, this.firstExhibitX + Math.max(exhibits.length - 1, 0) * DOOR_GAP + 620 + (exhibits.length ? END_EXTRA : 0));
+    this.worldW = Math.max(VW, this.firstExhibitX + Math.max(exhibits.length - 1, 0) * DOOR_GAP + 620 + (exhibits.length ? END_EXTRA : 0));
 
     this.makeTexture('dev-a', DEV_A);
     this.makeTexture('dev-b', DEV_B);
@@ -231,7 +241,7 @@ class MuseumScene extends Phaser.Scene {
     this.uncleShadow = null;
     if (this.snes) {
       for (const [key, rows] of Object.entries(GRAVE_SPRITES)) this.makeTexture(key, rows);
-      this.cryptTexture = addGraveyardTerrain(this, this.worldW, H, graveyardLighting());
+      this.cryptTexture = addGraveyardTerrain(this, this.worldW, VH, graveyardLighting());
       this.drawGraveEntrance();
     } else if (this.night) {
       this.makeTexture('tomb', TOMB);
@@ -284,7 +294,8 @@ class MuseumScene extends Phaser.Scene {
     this.flyer = this.night ? this.makeFlyer() : null;
 
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, this.worldW, H);
+    cam.setSize(VW, VH);
+    cam.setBounds(0, 0, this.worldW, VH);
     cam.startFollow(this.player, true, 0.12, 0.12);
 
     const kb = this.input.keyboard;
@@ -334,7 +345,7 @@ class MuseumScene extends Phaser.Scene {
     g.fillStyle(0xd9a441, 1).fillRect(0, 326, w, 4);
     g.fillStyle(0x1f0f18, 1).fillRect(0, FLOOR - 8, w, 8);
     for (let x = 0, i = 0; x < w; x += 32, i++) {
-      for (let y = FLOOR, j = 0; y < H; y += 22, j++) g.fillStyle((i + j) % 2 ? 0xe9dcc2 : 0x2b2230, 1).fillRect(x, y, 32, 22);
+      for (let y = FLOOR, j = 0; y < VH; y += 22, j++) g.fillStyle((i + j) % 2 ? 0xe9dcc2 : 0x2b2230, 1).fillRect(x, y, 32, 22);
     }
     for (let x = 120; x < w; x += 240) {
       g.fillStyle(0xfff2c6, 0.05).fillTriangle(x - 14, 34, x + 14, 34, x + 96, FLOOR);
@@ -369,7 +380,7 @@ class MuseumScene extends Phaser.Scene {
     const padY = 7;
     const w = Math.ceil(text.width) + padX * 2;
     const h = Math.ceil(text.height) + padY * 2;
-    const left = anchor === 'center' ? Math.round(x - w / 2) : x < 0 ? W + x - w : x;
+    const left = anchor === 'center' ? Math.round(x - w / 2) : x < 0 ? VW + x - w : x;
     const bg = this.add.graphics().setDepth(depth);
     text.setPosition(left + padX, y + padY);
     const zone = this.add.zone(left, y, w, h).setOrigin(0).setDepth(depth + 2).setInteractive({ useHandCursor: true });
@@ -409,7 +420,7 @@ class MuseumScene extends Phaser.Scene {
     const classic = this.night && !this.snes;
     const daylight = classic && !this.dark;
     const note = this.add
-      .text(W / 2, FLOOR + 64, t('note'), textStyle(FONT_BODY, 18, this.snes ? '#d0c4aa' : daylight ? '#e8e2ff' : classic ? '#a9a5c4' : '#c9c2b6'))
+      .text(VW / 2, VH - (H - FLOOR - 64), t('note'), textStyle(FONT_BODY, 18, this.snes ? '#d0c4aa' : daylight ? '#e8e2ff' : classic ? '#a9a5c4' : '#c9c2b6'))
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(25)
@@ -420,7 +431,7 @@ class MuseumScene extends Phaser.Scene {
     const width = note.width + 36;
     this.add.graphics().setScrollFactor(0).setDepth(24)
       .fillStyle(fill, classic && this.dark ? 0.45 : 0.9)
-      .fillRect((W - width) / 2, FLOOR + 46, width, 36);
+      .fillRect((VW - width) / 2, VH - (H - FLOOR - 46), width, 36);
   }
 
   makeHud() {
@@ -566,21 +577,21 @@ class MuseumScene extends Phaser.Scene {
       ? [0x05061a, 0x080a22, 0x0c0d2b, 0x120f33, 0x18123a, 0x1f1640, 0x271a45]
       : [0x739fc7, 0x80adcf, 0x8db9d4, 0x98c4d9, 0xa6cedb, 0xb6d6d9, 0xc5dcd4];
     const bandH = Math.ceil(FLOOR / bands.length);
-    bands.forEach((c, i) => sky.fillStyle(c, 1).fillRect(0, i * bandH, W, bandH));
+    bands.forEach((c, i) => sky.fillStyle(c, 1).fillRect(0, i * bandH, VW, bandH));
 
     if (this.dark) this.drawClassicMoon(rnd);
     else this.drawClassicSun();
 
     // Hills far away, then a dead tree line, then the iron fence.
     const hills = this.add.graphics().setScrollFactor(0.4).setDepth(-7);
-    const hillW = W + (w - W) * 0.4 + 80;
+    const hillW = VW + (w - VW) * 0.4 + 80;
     const pts = [{ x: 0, y: FLOOR }];
     for (let x = 0; x <= hillW; x += 40) pts.push({ x, y: 300 + Math.sin(x / 170) * 34 + Math.sin(x / 61) * 12 });
     pts.push({ x: hillW, y: FLOOR });
     hills.fillStyle(this.dark ? 0x161026 : 0x779b78, 1).fillPoints(pts, true);
 
     const trees = this.add.graphics().setScrollFactor(0.7).setDepth(-6);
-    const treeW = W + (w - W) * 0.7;
+    const treeW = VW + (w - VW) * 0.7;
     for (let tx = 140; tx < treeW; tx += 380 + rnd() * 260) {
       const base = FLOOR - 10;
       trees.fillStyle(this.dark ? 0x0e0a16 : 0x5b4d40, 1).fillRect(tx, base - 190, 14, 190);
@@ -591,7 +602,7 @@ class MuseumScene extends Phaser.Scene {
     }
 
     const fence = this.add.graphics().setScrollFactor(0.9).setDepth(-5);
-    const fenceW = W + (w - W) * 0.9;
+    const fenceW = VW + (w - VW) * 0.9;
     fence.fillStyle(this.dark ? 0x0b0812 : 0x343c38, 1).fillRect(0, FLOOR - 58, fenceW, 6).fillRect(0, FLOOR - 22, fenceW, 6);
     for (let fx = 0; fx < fenceW; fx += 18) {
       fence.fillRect(fx, FLOOR - 74, 6, 74);
@@ -600,7 +611,7 @@ class MuseumScene extends Phaser.Scene {
 
     // Tufts of grass along the path.
     const ground = this.add.graphics().setDepth(-4);
-    ground.fillStyle(this.dark ? 0x1b1420 : 0x876f55, 1).fillRect(0, FLOOR, w, H - FLOOR);
+    ground.fillStyle(this.dark ? 0x1b1420 : 0x876f55, 1).fillRect(0, FLOOR, w, VH - FLOOR);
     const grass = this.dark ? 0x24402a : 0x54734d;
     const grassHighlight = this.dark ? 0x2f5535 : 0x6c8a54;
     ground.fillStyle(grass, 1).fillRect(0, FLOOR - 4, w, 10);
@@ -608,7 +619,7 @@ class MuseumScene extends Phaser.Scene {
       const h = 4 + Math.floor(rnd() * 8);
       ground.fillStyle(rnd() < 0.5 ? grassHighlight : grass, 1).fillRect(gx, FLOOR - 4 - h, 3, h);
     }
-    for (let i = 0; i < w / 10; i++) ground.fillStyle(this.dark ? 0x2b2132 : 0x9d8061, 1).fillRect(rnd() * w, FLOOR + 12 + rnd() * (H - FLOOR - 16), 4, 4);
+    for (let i = 0; i < w / 10; i++) ground.fillStyle(this.dark ? 0x2b2132 : 0x9d8061, 1).fillRect(rnd() * w, FLOOR + 12 + rnd() * (VH - FLOOR - 16), 4, 4);
 
     if (!this.dark) return;
     // Ground fog drifting lazily.
@@ -622,7 +633,7 @@ class MuseumScene extends Phaser.Scene {
   drawClassicMoon(rnd) {
     const w = this.worldW;
     // Stars on a slow parallax layer: small ones twinkle, a few bright ones sparkle.
-    const layerW = W + (w - W) * 0.15 + 40;
+    const layerW = VW + (w - VW) * 0.15 + 40;
     if (!this.textures.exists('star')) {
       const g = this.add.graphics();
       g.fillStyle(0xffffff, 1).fillRect(0, 0, 3, 3);
@@ -672,7 +683,7 @@ class MuseumScene extends Phaser.Scene {
     sun.fillStyle(0xffe9bb, 0.18).fillCircle(x, y, 49);
     sun.fillStyle(0xffe2a7, 1).fillCircle(x, y, 33);
     const clouds = this.add.graphics().setScrollFactor(0.16).setDepth(-9);
-    const width = W + (this.worldW - W) * 0.16;
+    const width = VW + (this.worldW - VW) * 0.16;
     for (let left = 60, i = 0; left < width; left += 183, i++) {
       const top = 124 + (i % 3) * 37;
       clouds.fillStyle(0xd9e8e1, 1).fillRect(left, top + 10, 105, 13).fillRect(left + 16, top, 66, 13).fillRect(left + 37, top - 7, 28, 10);
@@ -882,7 +893,7 @@ class MuseumScene extends Phaser.Scene {
     flyer.y = this.flyerBaseY + Math.sin(time / 260) * 14 + Math.sin(time / 1100) * 26;
     // Turn around once it leaves the screen, at a new height.
     const screenX = flyer.x - this.cameras.main.scrollX * 0.6;
-    if ((this.flyerDir > 0 && screenX > W + 60) || (this.flyerDir < 0 && screenX < -60)) {
+    if ((this.flyerDir > 0 && screenX > VW + 60) || (this.flyerDir < 0 && screenX < -60)) {
       this.flyerDir *= -1;
       flyer.setFlipX(this.flyerDir < 0);
       this.flyerBaseY = 70 + Math.random() * 150;
@@ -1923,11 +1934,12 @@ async function boot() {
     toggleList(true);
     return;
   }
+  ({ w: VW, h: VH } = viewSize());
   state.game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
-    width: W,
-    height: H,
+    width: VW,
+    height: VH,
     pixelArt: true,
     backgroundColor: '#1a1016',
     banner: false,
@@ -1937,6 +1949,10 @@ async function boot() {
     scene: MuseumScene,
   });
   state.game.scale.on('resize', () => requestAnimationFrame(placeLangSwitch));
+  addEventListener('resize', () => {
+    clearTimeout(widenTimer);
+    widenTimer = setTimeout(widenView, 150);
+  });
   setInterval(refreshIfBusy, 6000);
 }
 
@@ -1949,6 +1965,20 @@ function fetchData() {
   return GUEST ? api(`/api/guests/${encodeURIComponent(GUEST)}?${q}`) : api(`/api/exhibits?${q}`);
 }
 
+// Match the game's size to the window's shape and redraw the scene where the player stands.
+let widenTimer = null;
+function widenView() {
+  const next = viewSize();
+  if (!state.game || (next.w === VW && next.h === VH)) return;
+  ({ w: VW, h: VH } = next);
+  state.game.scale.setGameSize(VW, VH);
+  const scene = state.scene;
+  if (scene?.player) {
+    state.lastX = scene.player.x;
+    scene.scene.restart();
+  }
+}
+
 // The dropdown sits in the bottom-right corner of the game, scaled with it; without a game, top right.
 function placeLangSwitch() {
   const canvas = state.game?.canvas;
@@ -1958,11 +1988,11 @@ function placeLangSwitch() {
     langSwitch.removeAttribute('style');
     return;
   }
-  const scale = rect.width / W;
+  const scale = rect.width / VW;
   langSwitch.classList.remove('floating');
   langSwitch.style.setProperty('--s', String(scale));
   langSwitch.style.right = `${document.documentElement.clientWidth - rect.right + 16 * scale}px`;
-  langSwitch.style.top = `${rect.top + (FLOOR + 50) * scale}px`;
+  langSwitch.style.top = `${rect.top + (VH - (H - FLOOR - 50)) * scale}px`;
 }
 
 // Swap in texts for the current language, keep what the page knows about revivals, redraw the scene.
