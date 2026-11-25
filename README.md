@@ -57,6 +57,7 @@ To scan your real GitHub account locally, put `GITHUB_TOKEN=$(gh auth token)` (a
 - Deep links: `/#room=<exhibit-id>` opens a room directly.
 - The graveyard starts in **16-BIT** style. Choose **8-BIT** at the top or press **B** for the original moonlit graveyard. The game remembers your choice. Link directly with `?theme=graveyard&style=8bit` or `?theme=graveyard&style=snes`. Open the **Museum** with **T** or `?theme=museum`.
 - The graveyard starts at night in both styles and remembers your lighting choice.
+- English or German: pick the language in the dropdown at the bottom right, or link with `?lang=de`. Uncle Gerd speaks plain English in English and like a German uncle in German. The first German visit of a graveyard lets Ollama translate its grave texts once; they are cached in `data/i18n/de/` until the graveyard is dug up again.
 
 ## Credits
 

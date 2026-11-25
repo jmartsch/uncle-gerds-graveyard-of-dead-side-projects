@@ -1,6 +1,7 @@
 import { DEV_A, DEV_B, DEV_BLINK, UNCLE, UNCLE_BLINK, UNCLE_TWITCH, UNCLE_TWITCH_BLINK, UNCLE_TAP, UNCLE_TAP_BLINK, DOOR, TOMB, BAT_UP, BAT_DOWN, BIRD_UP, BIRD_DOWN, PALETTE, paintPixels } from './pixels.js';
 import { addGraveyardTerrain, gravePathY, lanternBaseY, GRAVE_SPRITES, PIXEL, SECOND_LANTERN_X } from './graveyard-art.js';
 import { sfx, setSound, setSoundStyle, isSoundOn, onSoundChange, initSound } from './sound.js';
+import { t, getLang, locale, storeLang, translatePage, serverLine } from './i18n.js';
 
 // ---------- constants ----------
 const W = 960;
@@ -25,45 +26,19 @@ const FONT_PIXEL = '"Press Start 2P", monospace';
 const FONT_BODY = '"VT323", monospace';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const GREETING = 'Ah, kid. Welcome to your graveyard. Walk right, I will show you around.';
-const GREETING_EMPTY = 'Well, well. No dead projects at all? Come back in a year, kid.';
-const GRAVEYARD_QUESTION = 'Uncle Gerd, where are we?';
-const GRAVEYARD_ANSWER = 'Come on, kid. Let’s look around.';
-const EASTER_EGG_HINT = 'Maybe we’ll find a few Easter eggs along the way.';
 // At the very end of the trail: an empty grave, waiting for the next side project.
 const END_EXTRA = 340; // room behind the crypt for the empty grave
-const ENDING = [
-  ['player', 'We reached the end. What now?', 2600],
-  ['uncle', 'Ah, kid. Nobody knows what the future holds.', 3200],
-  ['uncle', 'But I keep this one ready. For your next side project.', 3800],
-  ['player', '…I haven’t even started it yet.', 2600],
-  ['uncle', 'Exactly.', 2600],
-];
-const graveyardSignLine = (owner) => owner
-  ? `Ah, this is where @${owner}’s old projects are buried.`
-  : 'Ah, this is where the old projects are buried.';
-const NIGHT_LINES = [
-  'Mind your step. Some of these still compile.',
-  "Hear that? Not a bat. A deprecation warning.",
-  'In 1998 we buried our code on floppy disks.',
-  "Well. At least the dead don't open issues.",
-  "Go on, visit one. They won't bite. Most of them don't even run.",
-];
-const UNCLE_LINES = [
-  "Mind the floor. It's older than your node_modules.",
-  'Every door here is a promise you did not keep.',
-  'In 1998 we had one server. And it ran!',
-  'Well. At least you wrote a README. Sometimes.',
-  'Go on, open one. They do not bite. Most of them do not even run.',
-];
+// Who speaks each line of t('ending'), and for how long.
+const ENDING = [['player', 2600], ['uncle', 3200], ['uncle', 3800], ['player', 2600], ['uncle', 2600]];
+const NO_LAST_WORDS = '(no last words)';
 // What Uncle Gerd mutters at a door: the line Ollama wrote for this repo, or one built from its facts.
 const QUIP_TEMPLATES = [
-  (ex) => ex.lastWords && ex.lastWords !== '(no last words)' && `"${ex.lastWords.slice(0, 48)}"… famous last words, kid.`,
-  (ex) => ex.stars > 0 && `${ex.stars} star${ex.stars === 1 ? '' : 's'}, and still nobody watered it.`,
-  (ex) => ex.language && ex.language !== 'mystery code' && `${ex.language}! Smell that? Vintage ${ex.years.split('–')[1]}.`,
-  (ex) => ex.lifespanDays && `${ex.lifespanDays} days of life. My cardigan has lasted longer.`,
-  (ex) => ex.years && `${ex.years}. I remember those years. Mostly the coffee.`,
-  (ex) => ex.openIssues > 0 && `${ex.openIssues} open issue${ex.openIssues === 1 ? '' : 's'}, still waiting for an answer.`,
+  (ex) => ex.lastWords && ex.lastWords !== NO_LAST_WORDS && t('quipLastWords', ex.lastWords.slice(0, 48)),
+  (ex) => ex.stars > 0 && t('quipStars', ex.stars),
+  (ex) => ex.language && ex.language !== 'mystery code' && t('quipLanguage', ex.language, ex.years.split('–')[1]),
+  (ex) => ex.lifespanDays && t('quipLifespan', ex.lifespanDays),
+  (ex) => ex.years && t('quipYears', ex.years),
+  (ex) => ex.openIssues > 0 && t('quipIssues', ex.openIssues),
 ];
 
 function doorQuip(ex, index) {
@@ -73,7 +48,7 @@ function doorQuip(ex, index) {
     const line = QUIP_TEMPLATES[(index + k + (hash(ex.id) % 2)) % QUIP_TEMPLATES.length](ex);
     if (line) return line;
   }
-  return 'Ah, this one. Come in, come in.';
+  return t('quipFallback');
 }
 
 // ---------- state ----------
@@ -166,7 +141,7 @@ const safeHref = (u) => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u : 
 const link = (href, text) => (safeHref(href) ? el('a', { href: safeHref(href), target: '_blank', rel: 'noopener' }, text) : text);
 const pct = (p) => (p == null ? '?' : `${Math.round(p * 100)}%`);
 const oddsColor = (p) => (p == null ? '#c9c2b6' : p < 0.33 ? '#ff7a7a' : p < 0.66 ? '#ffcf5a' : '#6dff9e');
-const shortDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+const shortDate = (iso) => (iso ? new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const focusGame = () => document.getElementById('game')?.focus({ preventScroll: true });
 const focusIsInteractive = () => Boolean(document.activeElement?.closest?.('button, a, input, textarea, select, summary, dialog'));
@@ -273,9 +248,9 @@ class MuseumScene extends Phaser.Scene {
     if (!state.hasWalked) {
       if (this.night && exhibits.length) {
         this.playerQuestion = this.makeBubble().setDepth(11);
-        this.drawPlayerBubble(this.playerQuestion, GRAVEYARD_QUESTION);
+        this.drawPlayerBubble(this.playerQuestion, t('graveyardQuestion'));
       } else {
-        this.say(exhibits.length ? GREETING : GREETING_EMPTY, null);
+        this.say(exhibits.length ? t('greeting') : t('greetingEmpty'), null);
       }
     }
     this.flyer = this.night ? this.makeFlyer() : null;
@@ -300,6 +275,7 @@ class MuseumScene extends Phaser.Scene {
     this.nextChat = 0;
     this.idle = { devBlinkAt: 1500, devBlinkUntil: 0, uncleBlinkAt: 2600, uncleBlinkUntil: 0, twitchAt: 4000, twitchUntil: 0 };
     if (state.open) this.pauseInput(true); // a room was opened via deep link before the hallway existed
+    requestAnimationFrame(placeLangSwitch);
   }
 
   walkY(x) {
@@ -342,13 +318,13 @@ class MuseumScene extends Phaser.Scene {
 
   // The in-game title: "THE PUBLIC MUSEUM / GRAVEYARD" and "OF @AUTHOR" underneath.
   drawTitle(x, y, title, titleColor, nameColor, footer, footerColor) {
-    let name = `OF @${String(state.data.owner || 'nobody').toUpperCase()}`;
+    let name = t('titleOf', String(state.data.owner || 'nobody').toUpperCase());
     if (name.length > 30) name = `${name.slice(0, 29)}…`;
     this.add.text(x, y + 30, title, textStyle(FONT_PIXEL, 16, titleColor)).setOrigin(0.5);
     this.add.text(x, y + 62, name, textStyle(FONT_PIXEL, name.length > 22 ? 9 : 12, nameColor)).setOrigin(0.5);
     this.add.text(x, y + 94, footer, textStyle(FONT_BODY, 20, footerColor)).setOrigin(0.5);
     // Right under the title: dig up your own graveyard.
-    this.digButton = this.makeButton(x, y + 138, 'DIG YOURS >', (btn, pointer) => openDigDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null), {
+    this.digButton = this.makeButton(x, y + 138, t('digYours'), (btn, pointer) => openDigDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null), {
       fixed: false,
       anchor: 'center',
       size: 10,
@@ -405,7 +381,7 @@ class MuseumScene extends Phaser.Scene {
     const classic = this.night && !this.snes;
     const daylight = classic && !this.dark;
     const note = this.add
-      .text(W / 2, FLOOR + 64, 'A personal agent living on a Fly.io Sprite · Built for Hacksgiving 2026', textStyle(FONT_BODY, 18, this.snes ? '#d0c4aa' : daylight ? '#e8e2ff' : classic ? '#a9a5c4' : '#c9c2b6'))
+      .text(W / 2, FLOOR + 64, t('note'), textStyle(FONT_BODY, 18, this.snes ? '#d0c4aa' : daylight ? '#e8e2ff' : classic ? '#a9a5c4' : '#c9c2b6'))
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(25)
@@ -428,30 +404,30 @@ class MuseumScene extends Phaser.Scene {
       right += button.w + gap;
       return button;
     };
-    this.hud.sound = add(isSoundOn() ? 'MUSIC ON ' : 'MUSIC OFF', () => setSound(!isSoundOn()), { gap: 18 });
+    this.hud.sound = add(isSoundOn() ? t('musicOn') : t('musicOff'), () => setSound(!isSoundOn()), { gap: 18 });
     add('8-BIT', () => setTheme('graveyard', '8bit'), { active: this.night && !this.snes });
     add('16-BIT', () => setTheme('graveyard', 'snes'), { active: this.snes, gap: 18 });
-    add('INSTRUCTIONS', (btn, pointer) =>
+    add(t('instructionsButton'), (btn, pointer) =>
       openHelp(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
-    add('ALL GRAVEYARDS', (btn, pointer) =>
+    add(t('allGraveyardsButton'), (btn, pointer) =>
       openGuestsDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
-    add('ABOUT THIS PROJECT', (btn, pointer) =>
+    add(t('aboutButton'), (btn, pointer) =>
       openAboutDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
     if (state.data.guest) {
-      this.makeButton(pad, pad, this.night ? "< CURATOR'S GRAVEYARD" : "< CURATOR'S MUSEUM", () => {
+      this.makeButton(pad, pad, this.night ? t('curatorGraveyard') : t('curatorMuseum'), () => {
         location.href = `/${location.search}`;
       });
     } else if (state.admin) {
-      this.hud.rescan = this.makeButton(pad, pad, state.rescanning || 'RESCAN GITHUB', () => rescan());
+      this.hud.rescan = this.makeButton(pad, pad, state.rescanning || t('rescan'), () => rescan());
     }
   }
 
   refreshHud() {
-    this.hud?.sound?.setLabel(isSoundOn() ? 'MUSIC ON ' : 'MUSIC OFF');
-    this.hud?.rescan?.setLabel(state.rescanning || 'RESCAN GITHUB');
+    this.hud?.sound?.setLabel(isSoundOn() ? t('musicOn') : t('musicOff'));
+    this.hud?.rescan?.setLabel(state.rescanning || t('rescan'));
   }
 
   drawEntrance() {
@@ -462,9 +438,9 @@ class MuseumScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(0xd9a441, 1).fillRect(x - w / 2 - 6, y - 6, w + 12, h + 12);
     g.fillStyle(0x1a1016, 1).fillRect(x - w / 2, y, w, h);
-    this.drawTitle(x, y, 'THE PUBLIC MUSEUM', '#d9a441', '#f3e6c8', 'Curated by Uncle Gerd · Admission free', '#c9c2b6');
+    this.drawTitle(x, y, t('museumTitle'), '#d9a441', '#f3e6c8', t('museumFooter'), '#c9c2b6');
     this.add
-      .text(x + 180, FLOOR - 60, 'Please do not\nfeed the bugs', textStyle(FONT_BODY, 18, '#1a1016', { backgroundColor: '#f3e6c8', padding: { x: 6, y: 2 }, align: 'center' }))
+      .text(x + 180, FLOOR - 60, t('feedBugs'), textStyle(FONT_BODY, 18, '#1a1016', { backgroundColor: '#f3e6c8', padding: { x: 6, y: 2 }, align: 'center' }))
       .setOrigin(0.5, 1);
   }
 
@@ -497,12 +473,12 @@ class MuseumScene extends Phaser.Scene {
     const cy = FLOOR - 150;
     g.fillStyle(frame, 1).fillRect(cx - 52, cy - 4, 104, 64);
     g.fillStyle(this.night ? 0x14101f : 0x1a1016, 1).fillRect(cx - 48, cy, 96, 56);
-    this.add.text(cx, cy + 14, 'REVIVAL', textStyle(FONT_PIXEL, 8, '#c9c2b6')).setOrigin(0.5);
+    this.add.text(cx, cy + 14, t('revivalSign'), textStyle(FONT_PIXEL, 8, '#c9c2b6')).setOrigin(0.5);
     const odds = this.add.text(cx, cy + 38, '', textStyle(FONT_PIXEL, 14, '#c9c2b6')).setOrigin(0.5);
 
     const status = this.add.text(x, py - 18, '', textStyle(FONT_PIXEL, 10, '#6dff9e')).setOrigin(0.5);
     const prompt = this.add
-      .text(x, top - 6, this.night ? '^ VISIT' : '^ ENTER', textStyle(FONT_PIXEL, 10, '#1a1016', { backgroundColor: this.night ? '#c9c4e6' : '#d9a441', padding: { x: 6, y: 4 } }))
+      .text(x, top - 6, this.night ? t('visitPromptClassic') : t('enterPrompt'), textStyle(FONT_PIXEL, 10, '#1a1016', { backgroundColor: this.night ? '#c9c4e6' : '#d9a441', padding: { x: 6, y: 4 } }))
       .setOrigin(0.5, 1)
       .setDepth(6)
       .setVisible(false);
@@ -522,14 +498,14 @@ class MuseumScene extends Phaser.Scene {
     d.status.setAlpha(1);
     const st = ex.revival?.status;
     if (st === 'live') {
-      d.status.setText(this.night ? '* RISEN *' : '* LIVE *').setColor('#6dff9e');
+      d.status.setText(this.night ? t('risen') : t('alive')).setColor('#6dff9e');
       d.door.setTint(0xc8ffd8);
     } else if (st === 'reviving') {
-      d.status.setText('REVIVING…').setColor('#ffcf5a');
+      d.status.setText(t('revivingSign')).setColor('#ffcf5a');
       d.door.clearTint();
       if (!reduceMotion) d.blink = this.tweens.add({ targets: d.status, alpha: 0.25, duration: 500, yoyo: true, repeat: -1 });
     } else if (st === 'failed') {
-      d.status.setText('STILL DEAD').setColor('#ff7a7a');
+      d.status.setText(t('stillDeadSign')).setColor('#ff7a7a');
       d.door.clearTint();
     } else {
       d.status.setText('');
@@ -688,9 +664,9 @@ class MuseumScene extends Phaser.Scene {
     g.fillStyle(0x8f8ca0, 1).fillRect(x - w / 2 - 6, y - 6, w + 12, h + 12);
     g.fillStyle(0x67647a, 1).fillRect(x + w / 2 - 6, y - 6, 12, h + 12);
     g.fillStyle(0x14101f, 1).fillRect(x - w / 2, y, w, h);
-    this.drawTitle(x, y, 'Project Graveyard', '#e8e2ff', '#c9c2b6', this.dark ? 'Kept by Uncle Gerd · Open all night' : 'Kept by Uncle Gerd', '#b0acc0');
+    this.drawTitle(x, y, t('graveyardTitle'), '#e8e2ff', '#c9c2b6', this.dark ? t('keptByNight') : t('keptBy'), '#b0acc0');
     this.add
-      .text(x - 150, FLOOR - 60, 'Please do not\nwake the dead code', textStyle(FONT_BODY, 18, '#14101f', { backgroundColor: '#c9c4e6', padding: { x: 6, y: 2 }, align: 'center' }))
+      .text(x - 150, FLOOR - 60, t('wakeDead'), textStyle(FONT_BODY, 18, '#14101f', { backgroundColor: '#c9c4e6', padding: { x: 6, y: 2 }, align: 'center' }))
       .setOrigin(0.5, 1);
   }
 
@@ -700,9 +676,9 @@ class MuseumScene extends Phaser.Scene {
     g.fillStyle(0x8f8ca0, 1).fillRect(x - 80, FLOOR - 150, 160, 150);
     g.fillStyle(0x67647a, 1).fillRect(x - 70, FLOOR - 140, 14, 140).fillRect(x + 56, FLOOR - 140, 14, 140);
     g.fillStyle(0x0b0812, 1).fillRect(x - 34, FLOOR - 104, 68, 104);
-    this.add.text(x, FLOOR - 250, 'CRYPT GIFT SHOP →', textStyle(FONT_PIXEL, 10, '#e8e2ff')).setOrigin(0.5);
-    this.add.text(x, FLOOR - 124, 'CLOSED', textStyle(FONT_PIXEL, 8, '#14101f')).setOrigin(0.5);
-    this.add.text(x, FLOOR - 60, 'forever', textStyle(FONT_BODY, 20, '#8f8ca0')).setOrigin(0.5);
+    this.add.text(x, FLOOR - 250, t('cryptGiftShopArrow'), textStyle(FONT_PIXEL, 10, '#e8e2ff')).setOrigin(0.5);
+    this.add.text(x, FLOOR - 124, t('closed'), textStyle(FONT_PIXEL, 8, '#14101f')).setOrigin(0.5);
+    this.add.text(x, FLOOR - 60, t('forever'), textStyle(FONT_BODY, 20, '#8f8ca0')).setOrigin(0.5);
   }
 
   // ---------- SNES graveyard ----------
@@ -719,7 +695,7 @@ class MuseumScene extends Phaser.Scene {
     const x = GRAVEYARD_ENTRANCE_X;
     const y = 60;
     this.drawGraveSign(x, y, 380, 114);
-    this.drawTitle(x, y, 'Project Graveyard', '#f3e6c8', '#e7c28a', 'Kept by Uncle Gerd', '#ddc5ab');
+    this.drawTitle(x, y, t('graveyardTitle'), '#f3e6c8', '#e7c28a', t('keptBy'), '#ddc5ab');
   }
 
   drawGrave(ex, x) {
@@ -740,10 +716,10 @@ class MuseumScene extends Phaser.Scene {
     this.add.text(x, plaqueY + 41, repoName, textStyle(FONT_BODY, 18, '#ddc5ab')).setOrigin(0.5);
     const details = this.add.text(x - 97, plaqueY + 63, `${ex.years} · ${ex.language}`, textStyle(FONT_BODY, 17, '#e7c28a')).setOrigin(0, 0.5);
     if (details.width > 145) details.setFontSize(Math.floor(17 * 145 / details.width));
-    this.add.text(x + 74, plaqueY + 54, 'REVIVAL', textStyle(FONT_BODY, 11, '#ddc5ab')).setOrigin(0.5);
+    this.add.text(x + 74, plaqueY + 54, t('revivalSign'), textStyle(FONT_BODY, 11, '#ddc5ab')).setOrigin(0.5);
     const odds = this.add.text(x + 74, plaqueY + 66, '', textStyle(FONT_PIXEL, 9, '#f3e6c8')).setOrigin(0.5);
     const status = this.add.text(x, plaqueY - 13, '', textStyle(FONT_PIXEL, 9, '#6dff9e', { stroke: '#272021', strokeThickness: 3 })).setOrigin(0.5);
-    const prompt = this.add.text(x, feet + 18, '↑ VISIT', textStyle(FONT_PIXEL, 9, '#2d211e', {
+    const prompt = this.add.text(x, feet + 18, t('visitPrompt'), textStyle(FONT_PIXEL, 9, '#2d211e', {
       backgroundColor: '#efd4a6', padding: { x: 7, y: 5 },
     })).setOrigin(0.5, 0).setDepth(6).setVisible(false);
     door.on('pointerdown', () => this.walkTo(ex.id));
@@ -758,8 +734,8 @@ class MuseumScene extends Phaser.Scene {
     const y = this.walkY(x) - 26;
     this.add.image(x, y, this.cryptTexture).setOrigin(0.5, 0.84).setScale(PIXEL);
     this.drawGraveSign(x, y - 155, 198, 34);
-    this.add.text(x, y - 138, 'CRYPT GIFT SHOP', textStyle(FONT_PIXEL, 9, '#f3e6c8')).setOrigin(0.5);
-    this.add.text(x, y - 24, 'CLOSED FOREVER', textStyle(FONT_BODY, 15, '#ddc5ab')).setOrigin(0.5);
+    this.add.text(x, y - 138, t('cryptGiftShop'), textStyle(FONT_PIXEL, 9, '#f3e6c8')).setOrigin(0.5);
+    this.add.text(x, y - 24, t('closedForever'), textStyle(FONT_BODY, 15, '#ddc5ab')).setOrigin(0.5);
   }
 
   // The end of the trail: a freshly dug, empty grave (an empty plinth in the museum) and a RESERVED sign beside it.
@@ -799,8 +775,8 @@ class MuseumScene extends Phaser.Scene {
     g.fillStyle(c.wood, 1).fillRect(sx - 4, base - 40, 8, 40);
     g.fillStyle(c.wall, 1).fillRect(sx - 66, base - 86, 132, 48);
     g.fillStyle(c.face, 1).fillRect(sx - 62, base - 82, 124, 40);
-    this.add.text(sx, base - 71, 'RESERVED', textStyle(FONT_PIXEL, 8, c.ink)).setOrigin(0.5).setDepth(1);
-    this.add.text(sx, base - 53, 'next side project', textStyle(FONT_BODY, 16, c.ink)).setOrigin(0.5).setDepth(1);
+    this.add.text(sx, base - 71, t('reserved'), textStyle(FONT_PIXEL, 8, c.ink)).setOrigin(0.5).setDepth(1);
+    this.add.text(sx, base - 53, t('nextProject'), textStyle(FONT_BODY, 16, c.ink)).setOrigin(0.5).setDepth(1);
   }
 
   // Plays the little scene at the empty grave once. Walking far away interrupts it, so it can run again.
@@ -827,7 +803,8 @@ class MuseumScene extends Phaser.Scene {
       this.showReviveButton();
       return;
     }
-    const [who, line, ms] = ENDING[step];
+    const [who, ms] = ENDING[step];
+    const line = t('ending')[step];
     if (who === 'player') {
       this.bubbleTimer?.remove();
       this.bubble.setVisible(false);
@@ -842,7 +819,7 @@ class MuseumScene extends Phaser.Scene {
   // After the scene: a way back to the grave with the best revival odds.
   showReviveButton() {
     if (!this.emptyGraveX || this.reviveButton) return;
-    this.reviveButton = this.makeButton(this.emptyGraveX + 112, this.endBase() - 136, 'REVIVE ONE INSTEAD >', () => this.goToBestBet(), {
+    this.reviveButton = this.makeButton(this.emptyGraveX + 112, this.endBase() - 136, t('reviveInstead'), () => this.goToBestBet(), {
       fixed: false,
       anchor: 'center',
       size: 9,
@@ -893,10 +870,10 @@ class MuseumScene extends Phaser.Scene {
     const g = this.add.graphics();
     g.fillStyle(0x1a1016, 1).fillRect(x - 70, FLOOR - 150, 140, 150);
     g.fillStyle(0x5a2f22, 1).fillRect(x - 60, FLOOR - 110, 120, 8).fillRect(x - 60, FLOOR - 60, 120, 8);
-    this.add.text(x, FLOOR - 196, 'EXIT THROUGH\nTHE GIFT SHOP →', textStyle(FONT_PIXEL, 10, '#d9a441', { align: 'center', lineSpacing: 6 })).setOrigin(0.5);
-    this.add.text(x, FLOOR - 132, 'SOLD OUT:', textStyle(FONT_BODY, 18, '#ff7a7a')).setOrigin(0.5);
-    this.add.text(x, FLOOR - 86, 'motivation', textStyle(FONT_BODY, 20, '#f3e6c8')).setOrigin(0.5);
-    this.add.text(x, FLOOR - 36, 'free time', textStyle(FONT_BODY, 20, '#f3e6c8')).setOrigin(0.5);
+    this.add.text(x, FLOOR - 196, t('giftShop'), textStyle(FONT_PIXEL, 10, '#d9a441', { align: 'center', lineSpacing: 6 })).setOrigin(0.5);
+    this.add.text(x, FLOOR - 132, t('soldOut'), textStyle(FONT_BODY, 18, '#ff7a7a')).setOrigin(0.5);
+    this.add.text(x, FLOOR - 86, t('motivation'), textStyle(FONT_BODY, 20, '#f3e6c8')).setOrigin(0.5);
+    this.add.text(x, FLOOR - 36, t('freeTime'), textStyle(FONT_BODY, 20, '#f3e6c8')).setOrigin(0.5);
   }
 
   makeBubble() {
@@ -950,7 +927,7 @@ class MuseumScene extends Phaser.Scene {
     this.bubbleTimer?.remove();
     this.bubble.setVisible(false);
     const reaction = this.playerReaction;
-    this.drawPlayerBubble(reaction, 'Huh?');
+    this.drawPlayerBubble(reaction, t('huh'));
     const marks = this.reactionMarks;
     const left = reaction.x - 14;
     const right = reaction.x + reaction.bubbleWidth + 10;
@@ -1044,7 +1021,7 @@ class MuseumScene extends Phaser.Scene {
         state.hasWalked = true;
         if (this.playerQuestion?.visible) {
           this.playerQuestion.setVisible(false);
-          this.say(GRAVEYARD_ANSWER);
+          this.say(t('graveyardAnswer'));
         } else if (this.showingGreeting) {
           this.bubble.setVisible(false);
           this.showingGreeting = false;
@@ -1080,7 +1057,7 @@ class MuseumScene extends Phaser.Scene {
     // Uncle Gerd starts guiding once you walk past him, and trails a few steps behind.
     if (!this.guiding && this.player.x > UNCLE_X + 140) {
       this.guiding = true;
-      if (!this.night) this.say('Come on, kid. Every room has a story.', 3500);
+      if (!this.night) this.say(t('museumGuide'), 3500);
     }
     let uncleSteps = false;
     if (this.guiding) {
@@ -1094,7 +1071,7 @@ class MuseumScene extends Phaser.Scene {
         uncleSteps = !reduceMotion && Math.floor(time / 160) % 2 === 1;
       }
     } else if (!this.snes && time > this.nextChat && Math.abs(this.player.x - this.uncle.x) < 110 && !this.bubble.visible) {
-      const lines = this.night ? NIGHT_LINES : UNCLE_LINES;
+      const lines = this.night ? t('nightLines') : t('uncleLines');
       this.say(lines[this.chatIndex++ % lines.length]);
       this.nextChat = time + 9000;
     }
@@ -1130,10 +1107,10 @@ class MuseumScene extends Phaser.Scene {
     if (!this.doors.length) return;
     if (!state.graveyardSignShown && previousX < GRAVEYARD_ENTRANCE_X && this.player.x >= GRAVEYARD_ENTRANCE_X) {
       state.graveyardSignShown = true;
-      this.say(graveyardSignLine(state.data.owner));
+      this.say(t('graveyardSign', state.data.owner));
     } else if (this.snes && state.graveyardSignShown && !state.easterEggHintShown && previousX < EASTER_EGG_HINT_X && this.player.x >= EASTER_EGG_HINT_X) {
       state.easterEggHintShown = true;
-      this.say(EASTER_EGG_HINT);
+      this.say(t('easterEggHint'));
     }
   }
 
@@ -1281,11 +1258,11 @@ function renderRoom(ex) {
     el(
       'div',
       { class: 'room' },
-      el('div', { class: 'close' }, el('button', { type: 'button', 'aria-label': 'Leave the room', onclick: closeRoom }, '✕')),
+      el('div', { class: 'close' }, el('button', { type: 'button', 'aria-label': t('leaveRoom'), onclick: closeRoom }, '✕')),
       el(
         'header',
         {},
-        el('p', { class: 'eyebrow' }, `${night() ? 'Here lies' : 'Exhibit'} · ${ex.years}`),
+        el('p', { class: 'eyebrow' }, `${night() ? t('hereLies') : t('exhibit')} · ${ex.years}`),
         el('h2', { id: 'room-title' }, ex.title),
         el('p', { class: 'repo' }, link(ex.url, ex.repo)),
       ),
@@ -1299,19 +1276,19 @@ function renderRoom(ex) {
           el(
             'dl',
             {},
-            ...dd('Language', ex.language),
-            ...dd('Born', shortDate(ex.born)),
-            ...dd('Died', shortDate(ex.died)),
-            ...dd('Lifespan', `${ex.lifespanDays} days`),
-            ...dd('Last words', `“${ex.lastWords}”`),
-            ...dd('Cause of death', ex.causeOfDeath),
-            ...dd('Survived by', `${ex.openIssues} open issue${ex.openIssues === 1 ? '' : 's'}, ${ex.stars} star${ex.stars === 1 ? '' : 's'}`),
+            ...dd(t('language'), ex.language),
+            ...dd(t('born'), shortDate(ex.born)),
+            ...dd(t('died'), shortDate(ex.died)),
+            ...dd(t('lifespan'), t('days', ex.lifespanDays)),
+            ...dd(t('lastWords'), ex.lastWords === NO_LAST_WORDS ? t('noLastWords') : `“${ex.lastWords}”`),
+            ...dd(t('causeOfDeath'), ex.causeOfDeath),
+            ...dd(t('survivedBy'), t('survivors', ex.openIssues, ex.stars)),
           ),
         ),
       ),
       el(
         'aside',
-        { class: 'uncle', 'aria-label': 'Uncle Gerd says' },
+        { class: 'uncle', 'aria-label': t('uncleSays') },
         portrait(),
         el('blockquote', {}, el('p', {}, ex.uncle?.line || '…'), el('footer', {}, moodLabel(ex))),
       ),
@@ -1323,7 +1300,7 @@ function renderRoom(ex) {
   );
 }
 
-function portrait(rows = snes() ? GRAVE_SPRITES.guide : UNCLE, label = 'Uncle Gerd') {
+function portrait(rows = snes() ? GRAVE_SPRITES.guide : UNCLE, label = t('uncleName')) {
   const c = el('canvas', { width: rows[0].length, height: rows.length, class: 'pixel portrait', role: 'img', 'aria-label': label });
   paintPixels(c.getContext('2d'), rows);
   return c;
@@ -1331,9 +1308,9 @@ function portrait(rows = snes() ? GRAVE_SPRITES.guide : UNCLE, label = 'Uncle Ge
 
 function moodLabel(ex) {
   const mood = ex.uncle?.mood;
-  if (!mood) return 'Uncle Gerd';
+  if (!mood) return t('uncleName');
   const conf = ex.odds?.moodConfidence;
-  return `Uncle Gerd, mood: ${mood.replaceAll('_', ' ')}${conf != null ? ` (${pct(conf)} sure, says Jev)` : ''}`;
+  return t('moodLine', t('moods')[mood] || mood.replaceAll('_', ' '), conf != null ? pct(conf) : null);
 }
 
 function gauge(label, p) {
@@ -1344,13 +1321,13 @@ function gauge(label, p) {
 }
 
 function oddsBlock(ex) {
-  if (!ex.odds) return el('section', { class: 'odds' }, el('p', { class: 'muted' }, 'Jev has not judged this one yet.'));
+  if (!ex.odds) return el('section', { class: 'odds' }, el('p', { class: 'muted' }, t('notJudged')));
   return el(
     'section',
-    { class: 'odds', 'aria-label': 'Decisions by Jev' },
-    gauge('Revival odds', ex.odds.revival),
-    gauge('Worth reviving', ex.odds.worthIt),
-    el('p', { class: 'muted' }, `Decided by ${ex.odds.model || 'Jev'} from TypeSafe AI`),
+    { class: 'odds', 'aria-label': t('decisionsBy') },
+    gauge(t('revivalOdds'), ex.odds.revival),
+    gauge(t('worthReviving'), ex.odds.worthIt),
+    el('p', { class: 'muted' }, t('decidedBy', ex.odds.model || 'Jev')),
   );
 }
 
@@ -1359,12 +1336,12 @@ function artifactsBlock(ex) {
   return el(
     'section',
     { class: 'artifacts' },
-    el('h3', {}, 'Found at the excavation site'),
+    el('h3', {}, t('found')),
     el(
       'ul',
       {},
       ...ex.artifacts.map((a) =>
-        el('li', { class: `a-${a.kind}` }, el('span', { class: 'kind' }, a.kind), ' ', link(a.url, a.label), a.date ? el('time', { datetime: a.date }, ` · ${shortDate(a.date)}`) : null),
+        el('li', { class: `a-${a.kind}` }, el('span', { class: 'kind' }, t('kinds')[a.kind] || a.kind), ' ', link(a.url, a.label), a.date ? el('time', { datetime: a.date }, ` · ${shortDate(a.date)}`) : null),
       ),
     ),
   );
@@ -1372,37 +1349,38 @@ function artifactsBlock(ex) {
 
 function questBlock(ex) {
   if (!ex.quest) return null;
-  return el('section', { class: 'quest' }, el('h3', {}, 'Revival quest'), el('p', { class: 'quest-title' }, link(ex.quest.url, ex.quest.title)), ex.quest.why ? el('p', {}, ex.quest.why) : null);
+  const title = ex.quest.kind === 'generic' && ex.quest.title === 'Make it start again on a modern runtime' ? t('genericQuest') : ex.quest.title;
+  return el('section', { class: 'quest' }, el('h3', {}, t('revivalQuest')), el('p', { class: 'quest-title' }, link(ex.quest.url, title)), ex.quest.why ? el('p', {}, ex.quest.why) : null);
 }
 
 function revivalContent(ex) {
   const r = ex.revival || { status: 'idle', log: [] };
-  const items = [el('h3', { id: 'revival-title' }, 'Resurrection')];
+  const items = [el('h3', { id: 'revival-title' }, t('resurrection'))];
   if (r.status === 'live') {
     items.push(
       el(
         'p',
         { class: 'live' },
-        '● Alive again on its own Sprite. ',
-        r.url && safeHref(r.url) ? el('a', { href: safeHref(r.url), target: '_blank', rel: 'noopener' }, 'Visit the living exhibit →') : null,
-        r.simulated ? el('small', {}, ' (simulation)') : null,
+        t('aliveAgain'),
+        r.url && safeHref(r.url) ? el('a', { href: safeHref(r.url), target: '_blank', rel: 'noopener' }, t('visitLiving')) : null,
+        r.simulated ? el('small', {}, t('simulation')) : null,
       ),
     );
   } else if (r.status === 'failed') {
-    items.push(el('p', { class: 'dead' }, 'Still dead. Uncle Gerd: “Told you so.”'));
+    items.push(el('p', { class: 'dead' }, t('stillDeadRoom')));
   } else if (r.status === 'reviving') {
-    items.push(el('p', { class: 'busy', role: 'status' }, `Attempt ${r.attempts || 1}: surgery in progress…`));
+    items.push(el('p', { class: 'busy', role: 'status' }, t('attempt', r.attempts || 1)));
   } else {
-    items.push(el('p', { class: 'muted' }, 'A fresh Sprite, a checkpoint, and Claude Code as the surgeon. If it fails, we restore and try again.'));
+    items.push(el('p', { class: 'muted' }, t('reviveIntro')));
   }
   if (r.log?.length) items.push(logView(r.log));
   if (r.status === 'idle' || r.status === 'failed') {
     if (state.data.guest) {
-      items.push(el('p', { class: 'muted' }, 'Revivals are reserved for the curator. Start with the quest above, the code is yours.'));
+      items.push(el('p', { class: 'muted' }, t('reservedForCurator')));
     } else if (state.admin || state.data.demo) {
-      items.push(el('button', { type: 'button', class: 'revive', onclick: () => revive(ex.id) }, r.status === 'failed' ? 'Try again' : 'Revive on a fresh Sprite'));
+      items.push(el('button', { type: 'button', class: 'revive', onclick: () => revive(ex.id) }, r.status === 'failed' ? t('tryAgain') : t('reviveButton')));
     } else {
-      items.push(el('p', { class: 'muted' }, 'Revivals are performed live by the curator.'));
+      items.push(el('p', { class: 'muted' }, t('curatorRevives')));
     }
   }
   return items;
@@ -1438,11 +1416,11 @@ function setRevival(id, r) {
   state.scene?.refreshDoor(id);
   renderList();
   if (before === 'reviving' && r.status === 'live') {
-    state.scene?.say('There you go! It lives!', 4000);
+    state.scene?.say(t('itLives'), 4000);
     sfx('alive');
   }
   if (before === 'reviving' && r.status === 'failed') {
-    state.scene?.say('Told you so.', 4000);
+    state.scene?.say(t('toldYou'), 4000);
     sfx('dead');
   }
 }
@@ -1479,16 +1457,16 @@ async function refreshIfBusy() {
 function setEnterButton(near) {
   const b = document.getElementById('enter');
   b.disabled = !near;
-  const verb = night() ? 'Visit' : 'Enter';
+  const verb = night() ? t('visit') : t('enter');
   b.textContent = near ? `${verb}: ${near.ex.title}` : verb;
 }
 
 function statusText(ex) {
   const st = ex.revival?.status;
-  if (st === 'live') return '● live';
-  if (st === 'reviving') return 'reviving…';
-  if (st === 'failed') return 'still dead';
-  return `revival odds ${pct(ex.odds?.revival ?? null)}`;
+  if (st === 'live') return t('statusLive');
+  if (st === 'reviving') return t('statusReviving');
+  if (st === 'failed') return t('statusDead');
+  return t('statusOdds', pct(ex.odds?.revival ?? null));
 }
 
 function renderList() {
@@ -1503,7 +1481,7 @@ function renderList() {
 // Curator mode: rescan GitHub from the HUD button; the label shows what the curator is doing.
 async function rescan() {
   if (state.rescanning) return;
-  state.rescanning = 'SCANNING…';
+  state.rescanning = t('scanning');
   state.scene?.refreshHud();
   try {
     await api('/api/scan', { method: 'POST' });
@@ -1516,7 +1494,7 @@ async function rescan() {
     clearInterval(timer);
     state.rescanning = null;
     state.scene?.refreshHud();
-    if (s.error) toast(`Scan failed: ${s.error}`);
+    if (s.error) toast(t('scanFailed', s.error));
     else location.reload();
   }, 2000);
 }
@@ -1534,21 +1512,17 @@ document.getElementById('list-toggle').addEventListener('click', () => {
 });
 
 // ---------- theme: museum or graveyard ----------
-const PLACE = { museum: 'Museum', graveyard: 'Graveyard' };
-
 function applyTheme() {
   setSoundStyle(snes() ? 'snes' : '8bit');
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.dataset.graveyardStyle = state.graveyardStyle;
   document.documentElement.dataset.graveyardLighting = graveyardLighting();
-  const place = PLACE[state.theme];
-  document.getElementById('site-place').textContent = place;
-  document.getElementById('game').setAttribute('aria-label', night()
-    ? 'The graveyard trail. Walk with the left and right arrow keys, or visit a grave with the up arrow. Press B to switch graphics styles or L for all graveyards.'
-    : 'The museum hallway. Walk with the left and right arrow keys, or enter a room with the up arrow. Press L for all graveyards.');
+  const place = t('place')[state.theme];
+  document.getElementById('page-title').textContent = t('docTitle', place);
+  document.getElementById('game').setAttribute('aria-label', night() ? t('ariaGraveyard') : t('ariaMuseum'));
   // (read the guest name from the URL here: this runs before GUEST is declared further down)
   const guest = decodeURIComponent(location.pathname.match(/^\/u\/([^/]+)\/?$/)?.[1] || '');
-  document.title = guest ? `@${guest} · Uncle Gerd's ${place}` : `Uncle Gerd's ${place} of Dead Side Projects`;
+  document.title = guest ? t('docTitleGuest', guest, place) : t('docTitle', place);
 }
 
 function setTheme(theme, style = state.graveyardStyle, lighting = state.lighting) {
@@ -1588,7 +1562,7 @@ document.getElementById('game').addEventListener('pointerdown', () => {
 });
 // Shortcuts: M music, T theme, B graveyard style, G dig up your own graveyard.
 window.addEventListener('keydown', (e) => {
-  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, dialog')) return;
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, select, dialog')) return;
   const key = e.key.toLowerCase();
   if (key === 'm') setSound(!isSoundOn());
   if (key === 't') setTheme(night() ? 'museum' : 'graveyard');
@@ -1680,7 +1654,7 @@ async function openGuestsDialog(from = null) {
   state.scene?.pauseInput(true);
   const list = document.getElementById('guests-list');
   const empty = document.getElementById('guests-empty');
-  list.replaceChildren(el('li', { class: 'muted' }, 'Digging through the records…'));
+  list.replaceChildren(el('li', { class: 'muted' }, t('readingRecords')));
   empty.hidden = true;
   guestsDialog.showModal();
   animatePopupOpen(guestsDialog, from);
@@ -1692,7 +1666,7 @@ async function openGuestsDialog(from = null) {
         el(
           'li',
           {},
-          el('a', { href: `/u/${encodeURIComponent(g.slug)}${location.search}` }, el('span', {}, `@${g.name}`), el('span', { class: 'muted' }, `${g.count} ${g.count === 1 ? 'grave' : 'graves'}`)),
+          el('a', { href: `/u/${encodeURIComponent(g.slug)}${location.search}` }, el('span', {}, `@${g.name}`), el('span', { class: 'muted' }, t('graves', g.count))),
         ),
       ),
     );
@@ -1719,7 +1693,7 @@ async function openAboutDialog(from = null) {
   // Only claim "live" for what the server reports as going through the gateway right now.
   const status = await api('/api/status').catch(() => null);
   for (const badge of aboutDialog.querySelectorAll('[data-connector]')) {
-    badge.textContent = status?.connectors?.[badge.dataset.connector]?.mode === 'gateway' ? '● connected' : '';
+    badge.textContent = status?.connectors?.[badge.dataset.connector]?.mode === 'gateway' ? t('connected') : '';
   }
 }
 aboutDialog.addEventListener('close', () => {
@@ -1739,7 +1713,7 @@ document.getElementById('visit-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const name = visitInput.value.trim().replace(/^@/, '').replace(/^https?:\/\/github\.com\//i, '').split('/')[0];
   if (!VALID_NAME.test(name)) {
-    toast('That does not look like a GitHub handle.');
+    toast(t('invalidHandle'));
     visitInput.focus();
     return;
   }
@@ -1751,7 +1725,7 @@ function tappingUncle() {
   const [idle, idleBlink, tap, tapBlink] = snes()
     ? [GRAVE_SPRITES.guide, GRAVE_SPRITES['guide-blink'], GRAVE_SPRITES['guide-step'], GRAVE_SPRITES['guide-step-blink']]
     : [UNCLE, UNCLE_BLINK, UNCLE_TAP, UNCLE_TAP_BLINK];
-  const c = portrait(idle, 'Uncle Gerd, tapping his foot while he digs');
+  const c = portrait(idle, t('tappingUncle'));
   const g = c.getContext('2d');
   let tick = 0;
   let blinkUntil = 0;
@@ -1799,8 +1773,8 @@ async function waitAtGate(reason, seconds, status) {
   document.getElementById('dig-progress').classList.add('queued');
   for (let left = Math.ceil(seconds); left > 0; left--) {
     const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
-    uncleSays(`${reason} I'll knock again in a moment, kid.`);
-    status.textContent = `Trying again in ${clock}…`;
+    uncleSays(t('knockAgain', serverLine(reason)));
+    status.textContent = t('tryingAgainIn', clock);
     await sleep(1000);
   }
   document.getElementById('dig-progress').classList.remove('queued');
@@ -1819,7 +1793,7 @@ async function digGuestMuseum(name) {
   const uncle = tappingUncle();
   state.digAnimation = uncle;
   document.getElementById('digging-portrait').replaceChildren(uncle.canvas);
-  document.getElementById('digging-title').textContent = `Uncle Gerd is digging up @${name}'s graveyard…`;
+  document.getElementById('digging-title').textContent = t('diggingUp', name);
   const t0 = Date.now();
   const clockTimer = setInterval(() => {
     const sec = Math.floor((Date.now() - t0) / 1000);
@@ -1839,11 +1813,11 @@ async function digGuestMuseum(name) {
   let started = false;
   try {
     for (;;) {
-      const res = await fetch(`/api/guests/${encodeURIComponent(name)}`);
+      const res = await fetch(`/api/guests/${encodeURIComponent(name)}?lang=${getLang()}`);
       const body = await res.json().catch(() => ({}));
       if (res.status === 200) {
         setProgress(1);
-        uncleSays('Fertig! Come in, come in.');
+        uncleSays(t('digDone'));
         await sleep(400);
         panel.hidden = true;
         finish();
@@ -1856,7 +1830,7 @@ async function digGuestMuseum(name) {
         if (r.status === 429) {
           // Gate is full or the hourly limit is reached: wait it out visibly, then knock again.
           panel.hidden = false;
-          await waitAtGate(b.error || 'The cemetery gate is crowded.', b.retryAfter || 30, status);
+          await waitAtGate(b.error || t('gateCrowded'), b.retryAfter || 30, status);
           continue;
         }
         if (!r.ok) throw new Error(b.error || `HTTP ${r.status}`);
@@ -1864,19 +1838,19 @@ async function digGuestMuseum(name) {
       } else if (res.status !== 202) {
         throw new Error(body.error || `HTTP ${res.status}`);
       }
-      if (body.status === 'error') throw new Error(body.error || 'The excavation failed.');
+      if (body.status === 'error') throw new Error(body.error || t('excavationFailed'));
       panel.hidden = false;
       const queued = body.status === 'queued' && body.position;
       status.textContent = queued
-        ? `In the queue: number ${body.position} of ${body.total} · about ${duration(body.etaSeconds)} until it's ready`
-        : 'Digging… this takes about a minute.';
+        ? t('queueStatus', body.position, body.total, duration(body.etaSeconds))
+        : t('diggingMinute');
       bar.classList.toggle('queued', Boolean(queued));
       if (!queued) setProgress(Math.max(0.08, Math.min(0.95, (body.log?.length || 0) / DIG_STEPS)));
       const last = body.log?.at(-1)?.msg;
       uncleSays(
         queued
-          ? `You are number ${body.position} of ${body.total} at the cemetery gate. Patience, kid.`
-          : last || 'One moment, kid. Let me get my shovel.',
+          ? t('gateNumber', body.position, body.total)
+          : serverLine(last) || t('shovel'),
       );
       await sleep(1500);
     }
@@ -1890,9 +1864,9 @@ function showDigError(message) {
   document.getElementById('digging').hidden = false;
   document.getElementById('dig-meter').hidden = true;
   document.getElementById('digging-portrait').replaceChildren(portrait());
-  document.getElementById('digging-title').textContent = 'Uncle Gerd put down his shovel.';
+  document.getElementById('digging-title').textContent = t('putDownShovel');
   document.getElementById('digging-status').textContent = '';
-  uncleSays(`Oh dear. ${message}`);
+  uncleSays(t('ohDear', serverLine(message)));
   document.getElementById('dig-again').hidden = false;
 }
 
@@ -1901,7 +1875,7 @@ async function boot() {
     const hallway = [document.getElementById('game')];
     for (const node of hallway) node.hidden = true; // nothing to walk through until the digging is done
     document.getElementById('visit-name').value = GUEST;
-    if (!VALID_NAME.test(GUEST)) return showDigError('That is not a valid GitHub username.');
+    if (!VALID_NAME.test(GUEST)) return showDigError(t('invalidUser'));
     try {
       state.data = await digGuestMuseum(GUEST);
     } catch (err) {
@@ -1910,18 +1884,19 @@ async function boot() {
     for (const node of hallway) node.hidden = false;
   } else {
     try {
-      state.data = await api('/api/exhibits');
+      state.data = await fetchData();
     } catch (err) {
-      toast(`The museum is closed today: ${err.message}`);
+      toast(t('museumClosed', err.message));
       return;
     }
   }
   renderList();
+  watchTranslation();
   await fontsReady();
   const deepLink = decodeURIComponent(location.hash.match(/^#room=([\w-]+)/)?.[1] || '');
   if (deepLink) openRoom(deepLink, { playSound: false });
   if (!window.Phaser) {
-    toast('The game engine did not load, so here is the list of exhibits.');
+    toast(t('noEngine'));
     toggleList(true);
     return;
   }
@@ -1938,8 +1913,98 @@ async function boot() {
     input: { windowEvents: false },
     scene: MuseumScene,
   });
+  state.game.scale.on('resize', () => requestAnimationFrame(placeLangSwitch));
   setInterval(refreshIfBusy, 6000);
 }
+
+// ---------- language: English or German ----------
+const langSwitch = document.getElementById('lang-switch');
+const langSelect = document.getElementById('lang-select');
+
+function fetchData() {
+  const q = `lang=${getLang()}`;
+  return GUEST ? api(`/api/guests/${encodeURIComponent(GUEST)}?${q}`) : api(`/api/exhibits?${q}`);
+}
+
+// The dropdown sits in the bottom-right corner of the game, scaled with it; without a game, top right.
+function placeLangSwitch() {
+  const canvas = state.game?.canvas;
+  const rect = canvas && !document.getElementById('game').hidden ? canvas.getBoundingClientRect() : null;
+  if (!rect?.width) {
+    langSwitch.classList.add('floating');
+    langSwitch.removeAttribute('style');
+    return;
+  }
+  const scale = rect.width / W;
+  langSwitch.classList.remove('floating');
+  langSwitch.style.setProperty('--s', String(scale));
+  langSwitch.style.right = `${document.documentElement.clientWidth - rect.right + 16 * scale}px`;
+  langSwitch.style.top = `${rect.top + (FLOOR + 50) * scale}px`;
+}
+
+// Swap in texts for the current language, keep what the page knows about revivals, redraw the scene.
+function applyData(data) {
+  const revivals = new Map(state.data?.exhibits.map((e) => [e.id, e.revival]) || []);
+  state.data = { ...data, exhibits: data.exhibits.map((e) => ({ ...e, revival: revivals.get(e.id) ?? e.revival })) };
+  renderList();
+  const open = state.data.exhibits.find((e) => e.id === state.open);
+  if (open) renderRoom(open);
+  const scene = state.scene;
+  if (scene?.player) {
+    state.lastX = scene.player.x;
+    scene.scene.restart();
+  }
+}
+
+// German grave texts are translated by Ollama on the server the first time; wait for them.
+let translationTimer = null;
+function watchTranslation(announce = true) {
+  clearTimeout(translationTimer);
+  const status = state.data?.translation;
+  if (status === 'failed') return toast(t('translationFailed'));
+  if (status !== 'pending') return;
+  if (announce) toast(t('translating'));
+  const wanted = getLang();
+  translationTimer = setTimeout(async () => {
+    const data = await fetchData().catch(() => null);
+    if (!data || wanted !== getLang()) return;
+    if (data.translation === 'pending') {
+      state.data.translation = 'pending';
+      return watchTranslation(false);
+    }
+    applyData(data);
+    if (data.translation === 'failed') toast(t('translationFailed'));
+    else document.getElementById('toast').hidden = true;
+  }, 4000);
+}
+
+async function setLang(next) {
+  if (next === getLang()) return;
+  storeLang(next);
+  langSelect.value = getLang();
+  translatePage();
+  applyTheme();
+  setEnterButton(state.scene?.near || null);
+  if (!state.data) return; // still digging: the dig screen picks up the language on its next update
+  try {
+    applyData(await fetchData());
+    watchTranslation();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+langSelect.value = getLang();
+langSelect.addEventListener('change', () => {
+  setLang(langSelect.value);
+  langSelect.blur();
+  focusGame();
+});
+window.addEventListener('resize', () => requestAnimationFrame(placeLangSwitch));
+translatePage();
+document.getElementById('dig-bubble').textContent = t('shovel');
+setEnterButton(null);
+placeLangSwitch();
 
 boot();
 

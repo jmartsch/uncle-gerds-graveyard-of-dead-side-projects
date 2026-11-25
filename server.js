@@ -7,6 +7,7 @@ import { loadExhibits, exhibitsWithRevivals } from './lib/exhibits.js';
 import { startScan, scanState, GUEST_NAME, loadGuest, guestState, startGuestScan, GuestLimitError, listGuests } from './lib/curator.js';
 import { startRevival, getRevival } from './lib/revive.js';
 import { status as connectorStatus } from './lib/connectors.js';
+import { localize, LANGS } from './lib/translate.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 const MIME = {
@@ -38,8 +39,9 @@ const deny = (res) => sendJSON(res, 403, { error: 'Only the curator may do that.
 async function routeApi(req, res, url) {
   const { pathname: p } = url;
   const m = req.method;
+  const lang = LANGS.includes(url.searchParams.get('lang')) ? url.searchParams.get('lang') : 'en';
 
-  if (m === 'GET' && p === '/api/exhibits') return sendJSON(res, 200, await exhibitsWithRevivals());
+  if (m === 'GET' && p === '/api/exhibits') return sendJSON(res, 200, await localize(await exhibitsWithRevivals(), lang, 'own'));
 
   if (m === 'GET' && p === '/api/status') {
     return sendJSON(res, 200, {
@@ -70,7 +72,8 @@ async function routeApi(req, res, url) {
     if (!guest[2] && m === 'GET') {
       const data = await loadGuest(key);
       if (data) {
-        return sendJSON(res, 200, { ...data, demo: false, guest: true, exhibits: data.exhibits.map((e) => ({ ...e, revival: { status: 'idle', log: [] } })) });
+        const guestData = { ...data, demo: false, guest: true, exhibits: data.exhibits.map((e) => ({ ...e, revival: { status: 'idle', log: [] } })) };
+        return sendJSON(res, 200, await localize(guestData, lang, `guest-${key}`));
       }
       const st = guestState(key);
       return st ? sendJSON(res, 202, st) : sendJSON(res, 404, { error: 'Not excavated yet.', notScanned: true });

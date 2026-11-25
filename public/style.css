@@ -1053,3 +1053,43 @@ main {
   background: var(--room);
   color: var(--gold);
 }
+
+/* ---------- language dropdown: bottom right of the game, scaled with it (--s) ---------- */
+.lang-switch {
+  position: fixed;
+  z-index: 4;
+}
+
+.lang-switch::after {
+  content: '▾';
+  position: absolute;
+  right: calc(8px * var(--s, 1.2));
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gold);
+  font-size: max(11px, calc(12px * var(--s, 1.2)));
+  pointer-events: none;
+}
+
+.lang-switch.floating {
+  top: 12px;
+  right: 12px;
+}
+
+.lang-switch select {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  padding: calc(6px * var(--s, 1.2)) calc(22px * var(--s, 1.2)) calc(6px * var(--s, 1.2)) calc(8px * var(--s, 1.2));
+  font: max(9px, calc(8px * var(--s, 1.2))) / 1.4 var(--pixel);
+  color: var(--cream);
+  background: var(--room);
+  border: calc(3px * var(--s, 1.2)) solid var(--gold);
+  border-radius: 0;
+  box-shadow: calc(4px * var(--s, 1.2)) calc(4px * var(--s, 1.2)) 0 rgb(0 0 0 / 0.4);
+  cursor: pointer;
+}
+
+.lang-switch select:hover {
+  background-color: var(--wall);
+}

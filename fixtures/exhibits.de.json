@@ -1,0 +1,46 @@
+{
+  "texts": {
+    "weather-dashboard": {
+      "title": "Das Wetter-Dashboard",
+      "plaque": "Ein Dashboard, das versprach, das Wetter in fünf Städten gleichzeitig zu zeigen. Es zeigte es in einer, nur auf dem Desktop, an guten Tagen.",
+      "causeOfDeath": "Das Layout war für morgen geplant. Morgen kam nie.",
+      "uncle": "Ach, Junge. Vierzig Tage Commits und dann „tomorrow just the layout“. 1998 haben wir Sachen fertig gemacht. Meistens.",
+      "questWhy": "Das ist der Bug, an dem du hängen geblieben bist, also ist es auch der Bug, der dich zurückbringt."
+    },
+    "habit-tracker-3000": {
+      "title": "Habit Tracker 3000",
+      "plaque": "An Neujahr gestartet, um tägliche Gewohnheiten zu zählen. Die eigene Serie endete am 19. Januar.",
+      "causeOfDeath": "Hat sich das Arbeiten am Habit Tracker abgewöhnt.",
+      "uncle": "Ein Habit Tracker, der achtzehn Tage gehalten hat. Na ja, das ist immer noch länger als meine Diät.",
+      "questWhy": "Ein Zeitzonen-Fix, und die Serien bedeuten endlich etwas."
+    },
+    "rewrite-it-in-rust": {
+      "title": "Schreib es in Rust neu",
+      "plaque": "Ein ehrgeiziger Plan, ein funktionierendes Shell-Skript in Rust neu zu schreiben. Das Shell-Skript ist bis heute im Einsatz.",
+      "causeOfDeath": "Nach Punkten gegen den Borrow Checker verloren.",
+      "uncle": "Siebenundvierzig Runden gegen den Borrow Checker. Respekt, Junge. Aber das Shell-Skript läuft noch, ja?",
+      "questWhy": "Es gibt keine offenen Issues. Es gibt auch keinen funktionierenden Code. Fang da an."
+    },
+    "todo-app-final-v2": {
+      "title": "Die Todo-App (Final v2)",
+      "plaque": "Eine Todo-App, deren einzige erledigte Aufgabe ihre eigene Erstellung war.",
+      "causeOfDeath": "Version 3 war schon geplant.",
+      "uncle": "Ach, Junge. Drei Rewrites, null Nutzer. Das nenne ich Konsequenz.",
+      "questWhy": "Das ist der Bug, an dem du hängen geblieben bist, also ist es auch der Bug, der dich zurückbringt."
+    },
+    "chat-bot-for-everything": {
+      "title": "Chatbot für alles",
+      "plaque": "Ein Bot, der alles beantworten sollte. Er beantwortete „Hallo“.",
+      "causeOfDeath": "Der API-Schlüssel ist abgelaufen. Die Motivation auch.",
+      "uncle": "Zu meiner Zeit hieß das ELIZA. Die hat wenigstens zugehört.",
+      "questWhy": "Das ist der Bug, an dem du hängen geblieben bist, also ist es auch der Bug, der dich zurückbringt."
+    },
+    "pixel-cat-game": {
+      "title": "Pixel-Katzenspiel",
+      "plaque": "Ein Jump ’n’ Run mit einer Katze, einem Level und keiner Möglichkeit zu gewinnen.",
+      "causeOfDeath": "Die Katze konnte springen. Sonst konnte nichts etwas.",
+      "uncle": "Die Katze springt, der Entwickler nicht mehr. Schade, Junge.",
+      "questWhy": "Das ist der Bug, an dem du hängen geblieben bist, also ist es auch der Bug, der dich zurückbringt."
+    }
+  }
+}

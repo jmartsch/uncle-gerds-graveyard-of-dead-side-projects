@@ -13,33 +13,41 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%233a1d2b'/%3E%3Cpath d='M4 15V7a4 4 0 0 1 8 0v8z' fill='%237a2f22' stroke='%23d9a441'/%3E%3C/svg%3E" />
   </head>
   <body>
-    <h1 class="visually-hidden">Uncle Gerd's <span id="site-place">Graveyard</span> of Dead Side Projects</h1>
+    <h1 id="page-title" class="visually-hidden">Uncle Gerd's Graveyard of Dead Side Projects</h1>
 
     <main>
       <div class="stage">
         <div id="game" tabindex="0" role="application" aria-label="The museum hallway. Walk with the arrow keys, enter a room with the up arrow, or use the list of exhibits below."></div>
         <section id="digging" class="digging" hidden>
-          <h2 id="digging-title">Uncle Gerd is digging…</h2>
+          <h2 id="digging-title" data-i18n="diggingTitle">Uncle Gerd is digging…</h2>
           <div class="dig-stage">
             <div id="digging-portrait"></div>
             <p id="dig-bubble" class="dig-bubble" aria-live="polite">One moment, kid. Let me get my shovel.</p>
           </div>
           <p id="digging-status" role="status"></p>
           <div id="dig-meter" class="dig-meter">
-            <div id="dig-progress" class="dig-progress" role="progressbar" aria-label="Excavation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
-            <span id="dig-clock" class="dig-clock" aria-label="Time spent digging">0:00</span>
+            <div id="dig-progress" class="dig-progress" role="progressbar" aria-label="Excavation progress" data-i18n-aria-label="digProgress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+            <span id="dig-clock" class="dig-clock" aria-label="Time spent digging" data-i18n-aria-label="digClock">0:00</span>
           </div>
-          <button type="button" id="dig-again" class="dig-again" hidden>Try another handle</button>
+          <button type="button" id="dig-again" class="dig-again" data-i18n="digAgain" hidden>Try another handle</button>
         </section>
       </div>
 
-      <nav class="touch" aria-label="Walking controls">
-        <button type="button" data-move="-1" aria-label="Walk left">◀</button>
+      <label class="lang-switch" id="lang-switch">
+        <span class="visually-hidden" id="lang-label">Language</span>
+        <select id="lang-select">
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </label>
+
+      <nav class="touch" aria-label="Walking controls" data-i18n-aria-label="walkingControls">
+        <button type="button" data-move="-1" aria-label="Walk left" data-i18n-aria-label="walkLeft">◀</button>
         <button type="button" id="enter" disabled>Enter</button>
-        <button type="button" data-move="1" aria-label="Walk right">▶</button>
+        <button type="button" data-move="1" aria-label="Walk right" data-i18n-aria-label="walkRight">▶</button>
       </nav>
 
-      <section id="list" hidden aria-label="All exhibits">
+      <section id="list" hidden aria-label="All exhibits" data-i18n-aria-label="allExhibits">
         <ul></ul>
       </section>
     </main>
@@ -47,100 +55,91 @@
     <dialog id="room" aria-labelledby="room-title"></dialog>
     <dialog id="help-dialog" class="dig-dialog help-dialog" aria-labelledby="help-title">
       <div class="help">
-        <h2 id="help-title">Instructions</h2>
+        <h2 id="help-title" data-i18n="instructions">Instructions</h2>
         <dl class="keys">
-          <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>walk (or click a grave or door)</dd>
-          <dt><kbd>↑</kbd> <kbd>Enter</kbd></dt><dd>visit a grave or interact nearby</dd>
-          <dt><kbd>Esc</kbd></dt><dd>leave again</dd>
-          <dt><kbd>L</kbd></dt><dd>all graveyards dug so far</dd>
-          <dt><kbd>G</kbd></dt><dd>dig up your own graveyard</dd>
-          <dt><kbd>T</kbd></dt><dd>switch between graveyard and museum</dd>
-          <dt><kbd>B</kbd></dt><dd>switch between 16-bit and 8-bit in the graveyard</dd>
-          <dt><kbd>M</kbd></dt><dd>music on or off</dd>
-          <dt><kbd>H</kbd></dt><dd>these instructions</dd>
+          <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd data-i18n="keyWalk">walk (or click a grave or door)</dd>
+          <dt><kbd>↑</kbd> <kbd>Enter</kbd></dt><dd data-i18n="keyVisit">visit a grave or interact nearby</dd>
+          <dt><kbd>Esc</kbd></dt><dd data-i18n="keyLeave">leave again</dd>
+          <dt><kbd>L</kbd></dt><dd data-i18n="keyList">all graveyards dug so far</dd>
+          <dt><kbd>G</kbd></dt><dd data-i18n="keyDig">dig up your own graveyard</dd>
+          <dt><kbd>T</kbd></dt><dd data-i18n="keyTheme">switch between graveyard and museum</dd>
+          <dt><kbd>B</kbd></dt><dd data-i18n="keyStyle">switch between 16-bit and 8-bit in the graveyard</dd>
+          <dt><kbd>M</kbd></dt><dd data-i18n="keyMusic">music on or off</dd>
+          <dt><kbd>H</kbd></dt><dd data-i18n="keyHelp">these instructions</dd>
         </dl>
         <p>
-          <button type="button" id="list-toggle" class="linklike" aria-expanded="false" aria-controls="list">Show all graves as a list</button>
+          <button type="button" id="list-toggle" class="linklike" aria-expanded="false" aria-controls="list" data-i18n="listToggle">Show all graves as a list</button>
         </p>
-        <p class="about">
-          Uncle Gerd is a personal agent living on a <a href="https://fly.io/sprites" target="_blank" rel="noopener">Fly.io Sprite</a>, built for
-          <a href="https://fly.io/hacksgiving/" target="_blank" rel="noopener">Hacksgiving 2026</a>.
-          <a href="https://github.com/jmartsch/uncle-gerds-graveyard-of-dead-side-projects" target="_blank" rel="noopener">Source on GitHub</a>.
-        </p>
+        <p class="about" data-i18n-html="helpAbout"></p>
         <div class="visit-actions">
-          <button type="button" id="help-close" autofocus>Got it</button>
+          <button type="button" id="help-close" autofocus data-i18n="gotIt">Got it</button>
         </div>
       </div>
     </dialog>
     <dialog id="about-dialog" class="dig-dialog about-dialog" aria-labelledby="about-title">
       <div class="about-project">
-        <h2 id="about-title" tabindex="-1" autofocus>About this project</h2>
-        <p>
-          A personal agent that turns abandoned GitHub repos into graves, lets Uncle Gerd judge them and tries to bring them back to life. Built for
-          <a href="https://fly.io/hacksgiving/" target="_blank" rel="noopener">Hacksgiving 2026</a>.
-        </p>
+        <h2 id="about-title" tabindex="-1" autofocus data-i18n="aboutTitle">About this project</h2>
+        <p data-i18n-html="aboutIntro"></p>
 
-        <h3>The Fly.io Sprite</h3>
-        <p>
-          The whole app lives on one <a href="https://fly.io/sprites" target="_blank" rel="noopener">Fly.io Sprite</a>, <code>ugm-museum</code>: web page, Node API and curator. It has a public URL and sleeps when nobody visits.
-        </p>
+        <h3 data-i18n="aboutSpriteTitle">The Fly.io Sprite</h3>
+        <p data-i18n-html="aboutSprite"></p>
 
-        <h3>Connectors</h3>
-        <p>Calls to these four services go through the Sprites connector gateway, so no provider API key is stored on a Sprite.</p>
+        <h3 data-i18n="aboutConnectorsTitle">Connectors</h3>
+        <p data-i18n="aboutConnectors"></p>
         <dl>
           <dt>GitHub <span data-connector="github"></span></dt>
-          <dd>Finds the dead: repos, READMEs, last commits, open issues.</dd>
+          <dd data-i18n="aboutGithub"></dd>
           <dt>TypeSafeAI (Jev) <span data-connector="typesafe"></span></dt>
-          <dd>Judges them: revival odds, "worth it" and Uncle Gerd's mood as typed decisions.</dd>
+          <dd data-i18n="aboutTypesafe"></dd>
           <dt>Ollama Cloud <span data-connector="ollama"></span></dt>
-          <dd>Gives Uncle Gerd his voice: plaque, cause of death and commentary.</dd>
+          <dd data-i18n="aboutOllama"></dd>
           <dt>Anthropic <span data-connector="anthropic"></span></dt>
-          <dd>The surgeon: headless Claude Code reaches Claude without a key on the exhibit Sprite.</dd>
+          <dd data-i18n="aboutAnthropic"></dd>
         </dl>
 
-        <h3>Sprites features</h3>
+        <h3 data-i18n="aboutFeaturesTitle">Sprites features</h3>
         <dl>
-          <dt>One Sprite per revival</dt>
-          <dd>Each patient gets a fresh, isolated Sprite, created with the Sprites SDK (<code>@fly/sprites</code>).</dd>
-          <dt>Checkpoint and restore</dt>
-          <dd>A checkpoint before surgery. If an attempt fails, it is restored before the next one.</dd>
-          <dt>Services and public URLs</dt>
-          <dd>A revived project runs as a service with its own URL and wakes up on a visit.</dd>
-          <dt>Tasks API</dt>
-          <dd>Keeps the museum Sprite awake during scans and revivals.</dd>
+          <dt data-i18n="aboutPerRevival"></dt>
+          <dd data-i18n-html="aboutPerRevivalText"></dd>
+          <dt data-i18n="aboutCheckpoint"></dt>
+          <dd data-i18n="aboutCheckpointText"></dd>
+          <dt data-i18n="aboutServices"></dt>
+          <dd data-i18n="aboutServicesText"></dd>
+          <dt data-i18n="aboutTasks"></dt>
+          <dd data-i18n="aboutTasksText"></dd>
         </dl>
 
-        <h3>Tech</h3>
-        <p>Node.js 24 without a web framework, vanilla JavaScript and CSS, <a href="https://phaser.io" target="_blank" rel="noopener">Phaser 3</a>, pixel art drawn in code, Web Audio.</p>
+        <h3 data-i18n="aboutTechTitle">Tech</h3>
+        <p data-i18n-html="aboutTech"></p>
 
-        <p><a href="https://github.com/jmartsch/uncle-gerds-graveyard-of-dead-side-projects" target="_blank" rel="noopener">Source on GitHub</a></p>
+        <p data-i18n-html="aboutSource"></p>
         <div class="visit-actions">
-          <button type="button" id="about-close">Close</button>
+          <button type="button" id="about-close" data-i18n="close">Close</button>
         </div>
       </div>
     </dialog>
     <dialog id="guests-dialog" class="dig-dialog guests-dialog" aria-labelledby="guests-title">
       <div class="guests">
-        <h2 id="guests-title">All graveyards dug so far</h2>
+        <h2 id="guests-title" data-i18n="guestsTitle">All graveyards dug so far</h2>
         <ul id="guests-list" class="guests-list"></ul>
-        <p id="guests-empty" class="muted" hidden>Nobody has been excavated yet.</p>
+        <p id="guests-empty" class="muted" data-i18n="guestsEmpty" hidden>Nobody has been excavated yet.</p>
         <div class="visit-actions">
-          <button type="button" id="guests-close" autofocus>Close</button>
+          <button type="button" id="guests-close" autofocus data-i18n="close">Close</button>
         </div>
       </div>
     </dialog>
     <dialog id="dig-dialog" class="dig-dialog" aria-labelledby="dig-dialog-title">
       <form id="visit-form" class="visit" method="dialog">
-        <h2 id="dig-dialog-title">Dig up your own graveyard</h2>
-        <p>Uncle Gerd digs up every public repo of yours that has not seen a push in a year.</p>
-        <label for="visit-name">Your GitHub handle</label>
+        <h2 id="dig-dialog-title" data-i18n="digDialogTitle">Dig up your own graveyard</h2>
+        <p data-i18n="digDialogText">Uncle Gerd digs up every public repo of yours that has not seen a push in a year.</p>
+        <label for="visit-name" data-i18n="handleLabel">Your GitHub handle</label>
         <div class="visit-row">
           <span class="at" aria-hidden="true">@</span>
           <input id="visit-name" name="github-handle" type="search" enterkeyhint="go" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" autocapitalize="off" spellcheck="false" placeholder="octocat" maxlength="60" required />
         </div>
         <div class="visit-actions">
-          <button type="button" class="ghost" id="visit-cancel">Cancel</button>
-          <button type="submit" value="dig">Dig</button>
+          <button type="button" class="ghost" id="visit-cancel" data-i18n="cancel">Cancel</button>
+          <button type="submit" value="dig" data-i18n="dig">Dig</button>
         </div>
       </form>
     </dialog>
