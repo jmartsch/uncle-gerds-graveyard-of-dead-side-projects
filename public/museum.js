@@ -1847,6 +1847,8 @@ async function boot() {
     backgroundColor: '#1a1016',
     banner: false,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    // Otherwise Phaser also takes mouse clicks outside the canvas, so clicks in a popup hit what lies behind it.
+    input: { windowEvents: false },
     scene: MuseumScene,
   });
   setInterval(refreshIfBusy, 6000);
