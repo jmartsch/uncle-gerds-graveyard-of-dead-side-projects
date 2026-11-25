@@ -68,7 +68,7 @@ function doorQuip(ex, index) {
 }
 
 // ---------- state ----------
-const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, graveyardSignShown: false, easterEggHintShown: false };
+const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, graveyardSignShown: false, easterEggHintShown: false, showControls: false };
 const night = () => state.theme === 'graveyard';
 const snes = () => night() && state.graveyardStyle === 'snes';
 const firstExhibitX = () => snes() ? FIRST_SNES_GRAVE : night() ? FIRST_GRAVE : FIRST_MUSEUM_DOOR;
@@ -386,7 +386,7 @@ class MuseumScene extends Phaser.Scene {
     return btn;
   }
 
-  // The basic controls and the Hacksgiving note, painted on the ground and fixed to the screen.
+  // The Hacksgiving note, painted on the ground and fixed to the screen. HELP shows the basic controls above it.
   drawGroundHints() {
     const classic = this.night && !this.snes;
     const daylight = classic && !this.dark;
@@ -415,10 +415,10 @@ class MuseumScene extends Phaser.Scene {
         x += Math.ceil(t.width) + 10;
       }
     }
-    const offset = Math.round((W - x) / 2);
-    line.x = offset;
-    // Backdrop strip so the hints and credit stay readable over terrain.
+    line.x = Math.round((W - x) / 2);
+    // Backdrop strips so the hints and credit stay readable over terrain.
     const strip = this.add.graphics().setScrollFactor(0).setDepth(24);
+    const controlsStrip = this.add.graphics().setScrollFactor(0).setDepth(24);
     for (const k of keys) {
       g.fillStyle(0x000000, 0.5).fillRect(k.x + 3, y - 12 + 3, k.w, 26);
       g.fillStyle(accent, 1).fillRect(k.x, y - 12, k.w, 26);
@@ -429,10 +429,24 @@ class MuseumScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(25)
       .setInteractive({ useHandCursor: true });
-    const stripWidth = (this.snes || daylight ? Math.max(x, note.width) : x) + 36;
-    strip.fillStyle(this.snes ? (this.dark ? 0x191e36 : 0x1e2c26) : classic ? 0x000000 : 0x1a1016, classic && this.dark ? 0.45 : 0.9)
-      .fillRect((W - stripWidth) / 2, FLOOR + 12, stripWidth, 70);
     note.on('pointerdown', () => window.open('https://fly.io/hacksgiving/', '_blank', 'noopener'));
+    const help = this.makeButton(-16, FLOOR + 53, 'HELP', () => {
+      state.showControls = !state.showControls;
+      showControls();
+    });
+    const fill = this.snes ? (this.dark ? 0x191e36 : 0x1e2c26) : classic ? 0x000000 : 0x1a1016;
+    const alpha = classic && this.dark ? 0.45 : 0.9;
+    const noteStripWidth = note.width + 36;
+    strip.fillStyle(fill, alpha).fillRect((W - noteStripWidth) / 2, FLOOR + 46, noteStripWidth, 36);
+    const controlsWidth = x + 36;
+    controlsStrip.fillStyle(fill, alpha).fillRect((W - controlsWidth) / 2, FLOOR + 8, controlsWidth, 38);
+    const showControls = () => {
+      line.setVisible(state.showControls);
+      controlsStrip.setVisible(state.showControls);
+      help.active = state.showControls;
+      help.draw();
+    };
+    showControls();
   }
 
   makeHud() {
