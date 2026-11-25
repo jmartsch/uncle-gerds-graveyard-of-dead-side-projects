@@ -25,19 +25,19 @@ const FONT_PIXEL = '"Press Start 2P", monospace';
 const FONT_BODY = '"VT323", monospace';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const GREETING = 'Ach, Junge. Welcome to your graveyard. Walk right, I will show you around.';
-const GREETING_EMPTY = 'Na ja. No dead projects at all? Come back in a year, Junge.';
+const GREETING = 'Ah, kid. Welcome to your graveyard. Walk right, I will show you around.';
+const GREETING_EMPTY = 'Well, well. No dead projects at all? Come back in a year, kid.';
 const GRAVEYARD_QUESTION = 'Uncle Gerd, where are we?';
-const GRAVEYARD_ANSWER = 'Come on, Junge. Let’s look around.';
+const GRAVEYARD_ANSWER = 'Come on, kid. Let’s look around.';
 const EASTER_EGG_HINT = 'Maybe we’ll find a few Easter eggs along the way.';
 // At the very end of the trail: an empty grave, waiting for the next side project.
 const END_EXTRA = 340; // room behind the crypt for the empty grave
 const ENDING = [
   ['player', 'We reached the end. What now?', 2600],
-  ['uncle', 'Ach, Junge. Nobody knows what the future holds.', 3200],
+  ['uncle', 'Ah, kid. Nobody knows what the future holds.', 3200],
   ['uncle', 'But I keep this one ready. For your next side project.', 3800],
   ['player', '…I haven’t even started it yet.', 2600],
-  ['uncle', 'Na eben.', 2600],
+  ['uncle', 'Exactly.', 2600],
 ];
 const graveyardSignLine = (owner) => owner
   ? `Ah, this is where @${owner}’s old projects are buried.`
@@ -46,19 +46,19 @@ const NIGHT_LINES = [
   'Mind your step. Some of these still compile.',
   "Hear that? Not a bat. A deprecation warning.",
   'In 1998 we buried our code on floppy disks.',
-  "Na ja. At least the dead don't open issues.",
+  "Well. At least the dead don't open issues.",
   "Go on, visit one. They won't bite. Most of them don't even run.",
 ];
 const UNCLE_LINES = [
   "Mind the floor. It's older than your node_modules.",
   'Every door here is a promise you did not keep.',
   'In 1998 we had one server. And it ran!',
-  'Na ja. At least you wrote a README. Sometimes.',
+  'Well. At least you wrote a README. Sometimes.',
   'Go on, open one. They do not bite. Most of them do not even run.',
 ];
 // What Uncle Gerd mutters at a door: the line Ollama wrote for this repo, or one built from its facts.
 const QUIP_TEMPLATES = [
-  (ex) => ex.lastWords && ex.lastWords !== '(no last words)' && `"${ex.lastWords.slice(0, 48)}"… famous last words, Junge.`,
+  (ex) => ex.lastWords && ex.lastWords !== '(no last words)' && `"${ex.lastWords.slice(0, 48)}"… famous last words, kid.`,
   (ex) => ex.stars > 0 && `${ex.stars} star${ex.stars === 1 ? '' : 's'}, and still nobody watered it.`,
   (ex) => ex.language && ex.language !== 'mystery code' && `${ex.language}! Smell that? Vintage ${ex.years.split('–')[1]}.`,
   (ex) => ex.lifespanDays && `${ex.lifespanDays} days of life. My cardigan has lasted longer.`,
@@ -73,11 +73,11 @@ function doorQuip(ex, index) {
     const line = QUIP_TEMPLATES[(index + k + (hash(ex.id) % 2)) % QUIP_TEMPLATES.length](ex);
     if (line) return line;
   }
-  return 'Ach, this one. Come in, come in.';
+  return 'Ah, this one. Come in, come in.';
 }
 
 // ---------- state ----------
-const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, graveyardSignShown: false, easterEggHintShown: false, showControls: false, endingShown: false };
+const state = { data: null, scene: null, open: null, poll: null, admin: readAdminKey(), theme: readTheme(), graveyardStyle: readGraveyardStyle(), lighting: readGraveyardLighting(), lastX: null, hasWalked: false, graveyardSignShown: false, easterEggHintShown: false, endingShown: false };
 const night = () => state.theme === 'graveyard';
 const snes = () => night() && state.graveyardStyle === 'snes';
 const firstExhibitX = () => snes() ? FIRST_SNES_GRAVE : night() ? FIRST_GRAVE : FIRST_MUSEUM_DOOR;
@@ -400,43 +400,10 @@ class MuseumScene extends Phaser.Scene {
     return btn;
   }
 
-  // The Hacksgiving note, painted on the ground and fixed to the screen. HELP shows the basic controls above it.
+  // The Hacksgiving note, painted on the ground and fixed to the screen. The controls live under INSTRUCTIONS.
   drawGroundHints() {
     const classic = this.night && !this.snes;
     const daylight = classic && !this.dark;
-    const ink = classic ? '#e8e2ff' : '#f3e6c8';
-    const accent = this.snes ? (this.dark ? 0xb6c5e3 : 0xd1b081) : classic ? 0xc9c4e6 : 0xd9a441;
-    const line = this.add.container(0, 0).setScrollFactor(0).setDepth(25);
-    const items = [['←'], ['→'], 'walk', null, ['↑'], 'enter', null, ['Esc'], 'leave'];
-    const g = this.add.graphics();
-    line.add(g);
-    let x = 0;
-    const y = FLOOR + 30;
-    const keys = [];
-    for (const item of items) {
-      if (item === null) {
-        x += 22;
-      } else if (Array.isArray(item)) {
-        const t = this.add.text(0, y, item[0], textStyle(FONT_BODY, 22, '#1a1016')).setOrigin(0.5);
-        const w = Math.max(28, Math.ceil(t.width) + 14);
-        t.x = x + w / 2;
-        keys.push({ x, w });
-        line.add(t);
-        x += w + 6;
-      } else {
-        const t = this.add.text(x + 2, y, item, textStyle(FONT_BODY, 22, ink)).setOrigin(0, 0.5);
-        line.add(t);
-        x += Math.ceil(t.width) + 10;
-      }
-    }
-    line.x = Math.round((W - x) / 2);
-    // Backdrop strips so the hints and credit stay readable over terrain.
-    const strip = this.add.graphics().setScrollFactor(0).setDepth(24);
-    const controlsStrip = this.add.graphics().setScrollFactor(0).setDepth(24);
-    for (const k of keys) {
-      g.fillStyle(0x000000, 0.5).fillRect(k.x + 3, y - 12 + 3, k.w, 26);
-      g.fillStyle(accent, 1).fillRect(k.x, y - 12, k.w, 26);
-    }
     const note = this.add
       .text(W / 2, FLOOR + 64, 'A personal agent living on a Fly.io Sprite · Built for Hacksgiving 2026', textStyle(FONT_BODY, 18, this.snes ? '#d0c4aa' : daylight ? '#e8e2ff' : classic ? '#a9a5c4' : '#c9c2b6'))
       .setOrigin(0.5)
@@ -444,23 +411,12 @@ class MuseumScene extends Phaser.Scene {
       .setDepth(25)
       .setInteractive({ useHandCursor: true });
     note.on('pointerdown', () => window.open('https://fly.io/hacksgiving/', '_blank', 'noopener'));
-    const help = this.makeButton(-16, FLOOR + 53, 'HELP', () => {
-      state.showControls = !state.showControls;
-      showControls();
-    });
+    // Backdrop strip so the note stays readable over terrain.
     const fill = this.snes ? (this.dark ? 0x191e36 : 0x1e2c26) : classic ? 0x000000 : 0x1a1016;
-    const alpha = classic && this.dark ? 0.45 : 0.9;
-    const noteStripWidth = note.width + 36;
-    strip.fillStyle(fill, alpha).fillRect((W - noteStripWidth) / 2, FLOOR + 46, noteStripWidth, 36);
-    const controlsWidth = x + 36;
-    controlsStrip.fillStyle(fill, alpha).fillRect((W - controlsWidth) / 2, FLOOR + 8, controlsWidth, 38);
-    const showControls = () => {
-      line.setVisible(state.showControls);
-      controlsStrip.setVisible(state.showControls);
-      help.active = state.showControls;
-      help.draw();
-    };
-    showControls();
+    const width = note.width + 36;
+    this.add.graphics().setScrollFactor(0).setDepth(24)
+      .fillStyle(fill, classic && this.dark ? 0.45 : 0.9)
+      .fillRect((W - width) / 2, FLOOR + 46, width, 36);
   }
 
   makeHud() {
@@ -1124,7 +1080,7 @@ class MuseumScene extends Phaser.Scene {
     // Uncle Gerd starts guiding once you walk past him, and trails a few steps behind.
     if (!this.guiding && this.player.x > UNCLE_X + 140) {
       this.guiding = true;
-      if (!this.night) this.say('Komm, Junge. Every room has a story.', 3500);
+      if (!this.night) this.say('Come on, kid. Every room has a story.', 3500);
     }
     let uncleSteps = false;
     if (this.guiding) {
@@ -1433,7 +1389,7 @@ function revivalContent(ex) {
       ),
     );
   } else if (r.status === 'failed') {
-    items.push(el('p', { class: 'dead' }, 'Still dead. Uncle Gerd: “Hab ich doch gesagt.”'));
+    items.push(el('p', { class: 'dead' }, 'Still dead. Uncle Gerd: “Told you so.”'));
   } else if (r.status === 'reviving') {
     items.push(el('p', { class: 'busy', role: 'status' }, `Attempt ${r.attempts || 1}: surgery in progress…`));
   } else {
@@ -1482,11 +1438,11 @@ function setRevival(id, r) {
   state.scene?.refreshDoor(id);
   renderList();
   if (before === 'reviving' && r.status === 'live') {
-    state.scene?.say('Na also! It lives!', 4000);
+    state.scene?.say('There you go! It lives!', 4000);
     sfx('alive');
   }
   if (before === 'reviving' && r.status === 'failed') {
-    state.scene?.say('Hab ich doch gesagt.', 4000);
+    state.scene?.say('Told you so.', 4000);
     sfx('dead');
   }
 }
@@ -1843,7 +1799,7 @@ async function waitAtGate(reason, seconds, status) {
   document.getElementById('dig-progress').classList.add('queued');
   for (let left = Math.ceil(seconds); left > 0; left--) {
     const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
-    uncleSays(`${reason} I'll knock again in a moment, Junge.`);
+    uncleSays(`${reason} I'll knock again in a moment, kid.`);
     status.textContent = `Trying again in ${clock}…`;
     await sleep(1000);
   }
@@ -1919,8 +1875,8 @@ async function digGuestMuseum(name) {
       const last = body.log?.at(-1)?.msg;
       uncleSays(
         queued
-          ? `You are number ${body.position} of ${body.total} at the cemetery gate. Patience, Junge.`
-          : last || 'Moment, Junge. Let me get my shovel.',
+          ? `You are number ${body.position} of ${body.total} at the cemetery gate. Patience, kid.`
+          : last || 'One moment, kid. Let me get my shovel.',
       );
       await sleep(1500);
     }
@@ -1936,7 +1892,7 @@ function showDigError(message) {
   document.getElementById('digging-portrait').replaceChildren(portrait());
   document.getElementById('digging-title').textContent = 'Uncle Gerd put down his shovel.';
   document.getElementById('digging-status').textContent = '';
-  uncleSays(`Ach. ${message}`);
+  uncleSays(`Oh dear. ${message}`);
   document.getElementById('dig-again').hidden = false;
 }
 

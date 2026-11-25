@@ -16,7 +16,7 @@ const checks = {
   ollama: async () => {
     const r = await call('ollama', '/v1/chat/completions', {
       method: 'POST',
-      json: { model: config.ollamaModel, messages: [{ role: 'user', content: 'Reply with exactly: Na ja.' }] },
+      json: { model: config.ollamaModel, messages: [{ role: 'user', content: 'Reply with exactly: Well, well.' }] },
     });
     return `${config.ollamaModel} says "${r.choices?.[0]?.message?.content?.trim()}"`;
   },

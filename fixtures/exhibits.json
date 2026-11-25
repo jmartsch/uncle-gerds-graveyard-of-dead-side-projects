@@ -19,7 +19,7 @@
       "causeOfDeath": "The layout was scheduled for tomorrow. Tomorrow never came.",
       "plaque": "A dashboard that promised to show the weather in five cities at once. It showed it in one, on desktop only, on good days.",
       "uncle": {
-        "line": "Ach, Junge. Forty days of commits and then \"tomorrow just the layout\". In 1998 we finished things. Mostly.",
+        "line": "Oh, kid. Forty days of commits and then \"tomorrow just the layout\". In 1998 we finished things. Mostly.",
         "mood": "told_you_so"
       },
       "odds": {
@@ -85,7 +85,7 @@
       "causeOfDeath": "Lost the habit of working on the habit tracker.",
       "plaque": "Started on New Year's Day to track daily habits. Its own streak ended on January 19.",
       "uncle": {
-        "line": "A habit tracker that lasted eighteen days. Na ja, that is still longer than my diet.",
+        "line": "A habit tracker that lasted eighteen days. Well, that is still longer than my diet.",
         "mood": "nostalgic"
       },
       "odds": {
@@ -139,7 +139,7 @@
       "causeOfDeath": "Lost to the borrow checker on points.",
       "plaque": "An ambitious plan to rewrite a working shell script in Rust. The shell script is still in use today.",
       "uncle": {
-        "line": "Forty-seven rounds against the borrow checker. Respect, Junge. But the shell script still works, ja?",
+        "line": "Forty-seven rounds against the borrow checker. Respect, kid. But the shell script still works, right?",
         "mood": "baffled"
       },
       "odds": {
@@ -193,7 +193,7 @@
       "causeOfDeath": "Version 3 was already planned.",
       "plaque": "A todo app whose only completed task was creating itself.",
       "uncle": {
-        "line": "Ach, Junge. Drei Rewrites, null Nutzer. Das nenne ich Konsequenz.",
+        "line": "Oh, kid. Three rewrites, zero users. Now that is commitment.",
         "mood": "told_you_so"
       },
       "odds": {
@@ -241,7 +241,7 @@
       "causeOfDeath": "The API key expired. So did the motivation.",
       "plaque": "A bot that was meant to answer everything. It answered hello.",
       "uncle": {
-        "line": "In meiner Zeit hieß das Eliza. Die hat wenigstens zugehört.",
+        "line": "In my day this was called ELIZA. At least she listened.",
         "mood": "nostalgic"
       },
       "odds": {
@@ -289,7 +289,7 @@
       "causeOfDeath": "The cat could jump. Nothing else could.",
       "plaque": "A platformer with one cat, one level and no way to win.",
       "uncle": {
-        "line": "Die Katze springt, der Entwickler nicht mehr. Schade, Junge.",
+        "line": "The cat still jumps. The developer does not. A pity, kid.",
         "mood": "bittersweet"
       },
       "odds": {
