@@ -453,6 +453,9 @@ class MuseumScene extends Phaser.Scene {
     add('ALL GRAVEYARDS', (btn, pointer) =>
       openGuestsDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
+    add('ABOUT THIS PROJECT', (btn, pointer) =>
+      openAboutDialog(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
+    );
     if (state.data.guest) {
       this.makeButton(pad, pad, this.night ? "< CURATOR'S GRAVEYARD" : "< CURATOR'S MUSEUM", () => {
         location.href = `/${location.search}`;
@@ -1618,6 +1621,28 @@ guestsDialog.addEventListener('click', (e) => {
 });
 document.getElementById('guests-close').addEventListener('click', () => guestsDialog.close());
 
+// "About this project": connectors, Sprite features and tech, with the live connector status.
+const aboutDialog = document.getElementById('about-dialog');
+async function openAboutDialog(from = null) {
+  if (aboutDialog.open || guestsDialog.open || helpDialog.open || digDialog.open || state.open) return;
+  state.scene?.pauseInput(true);
+  aboutDialog.showModal();
+  aboutDialog.scrollTop = 0;
+  animatePopupOpen(aboutDialog, from);
+  // Only claim "live" for what the server reports as going through the gateway right now.
+  const status = await api('/api/status').catch(() => null);
+  for (const badge of aboutDialog.querySelectorAll('[data-connector]')) {
+    badge.textContent = status?.connectors?.[badge.dataset.connector]?.mode === 'gateway' ? '● connected' : '';
+  }
+}
+aboutDialog.addEventListener('close', () => {
+  if (!state.open) state.scene?.pauseInput(false);
+});
+aboutDialog.addEventListener('click', (e) => {
+  if (e.target === aboutDialog) aboutDialog.close();
+});
+document.getElementById('about-close').addEventListener('click', () => aboutDialog.close());
+
 document.getElementById('dig-again').addEventListener('click', (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   openDigDialog({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
@@ -1830,4 +1855,4 @@ async function boot() {
 boot();
 
 // Debug hook for automated checks: /?debug exposes internal state.
-if (new URLSearchParams(location.search).has('debug')) window.__ugm = { state, openRoom, closeRoom };
+if (new URLSearchParams(location.search).has('debug')) window.__ugm = { state, openRoom, closeRoom, openAboutDialog };

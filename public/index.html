@@ -72,6 +72,53 @@
         </div>
       </div>
     </dialog>
+    <dialog id="about-dialog" class="dig-dialog about-dialog" aria-labelledby="about-title">
+      <div class="about-project">
+        <h2 id="about-title" tabindex="-1" autofocus>About this project</h2>
+        <p>
+          A personal agent that turns abandoned GitHub repos into graves, lets Uncle Gerd judge them and tries to bring them back to life. Built for
+          <a href="https://fly.io/hacksgiving/" target="_blank" rel="noopener">Hacksgiving 2026</a>.
+        </p>
+
+        <h3>The Fly.io Sprite</h3>
+        <p>
+          The whole app lives on one <a href="https://fly.io/sprites" target="_blank" rel="noopener">Fly.io Sprite</a>, <code>ugm-museum</code>: web page, Node API and curator. It has a public URL and sleeps when nobody visits.
+        </p>
+
+        <h3>Connectors</h3>
+        <p>Calls to these four services go through the Sprites connector gateway, so no provider API key is stored on a Sprite.</p>
+        <dl>
+          <dt>GitHub <span data-connector="github"></span></dt>
+          <dd>Finds the dead: repos, READMEs, last commits, open issues.</dd>
+          <dt>TypeSafeAI (Jev) <span data-connector="typesafe"></span></dt>
+          <dd>Judges them: revival odds, "worth it" and Uncle Gerd's mood as typed decisions.</dd>
+          <dt>Ollama Cloud <span data-connector="ollama"></span></dt>
+          <dd>Gives Uncle Gerd his voice: plaque, cause of death and commentary.</dd>
+          <dt>Anthropic <span data-connector="anthropic"></span></dt>
+          <dd>The surgeon: headless Claude Code reaches Claude without a key on the exhibit Sprite.</dd>
+        </dl>
+
+        <h3>Sprites features</h3>
+        <dl>
+          <dt>One Sprite per revival</dt>
+          <dd>Each patient gets a fresh, isolated Sprite, created with the Sprites SDK (<code>@fly/sprites</code>).</dd>
+          <dt>Checkpoint and restore</dt>
+          <dd>A checkpoint before surgery. If an attempt fails, it is restored before the next one.</dd>
+          <dt>Services and public URLs</dt>
+          <dd>A revived project runs as a service with its own URL and wakes up on a visit.</dd>
+          <dt>Tasks API</dt>
+          <dd>Keeps the museum Sprite awake during scans and revivals.</dd>
+        </dl>
+
+        <h3>Tech</h3>
+        <p>Node.js 24 without a web framework, vanilla JavaScript and CSS, <a href="https://phaser.io" target="_blank" rel="noopener">Phaser 3</a>, pixel art drawn in code, Web Audio.</p>
+
+        <p><a href="https://github.com/jmartsch/uncle-gerds-graveyard-of-dead-side-projects" target="_blank" rel="noopener">Source on GitHub</a></p>
+        <div class="visit-actions">
+          <button type="button" id="about-close">Close</button>
+        </div>
+      </div>
+    </dialog>
     <dialog id="guests-dialog" class="dig-dialog guests-dialog" aria-labelledby="guests-title">
       <div class="guests">
         <h2 id="guests-title">All graveyards dug so far</h2>

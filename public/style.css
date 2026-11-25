@@ -962,6 +962,57 @@ main {
   width: min(520px, calc(100% - 32px));
 }
 
+/* ---------- about this project ---------- */
+.about-dialog {
+  width: min(640px, calc(100% - 32px));
+}
+
+.about-project {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.about-project h2,
+.about-project h3 {
+  margin: 0;
+  font: 13px/1.6 var(--pixel);
+  color: var(--gold);
+}
+
+.about-project h3 {
+  margin-top: 8px;
+  font-size: 10px;
+}
+
+.about-project p,
+.about-project dl,
+.about-project dd {
+  margin: 0;
+}
+
+.about-project h2:focus {
+  outline: none;
+}
+
+.about-project code {
+  font: inherit;
+  color: var(--cream);
+}
+
+.about-project dt {
+  color: var(--gold);
+}
+
+.about-project dd + dt {
+  margin-top: 8px;
+}
+
+.about-project [data-connector] {
+  margin-left: 8px;
+  color: var(--green);
+}
+
 /* ---------- all graveyards dug so far ---------- */
 .guests {
   display: grid;
