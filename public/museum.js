@@ -446,7 +446,7 @@ class MuseumScene extends Phaser.Scene {
     };
     this.hud.sound = add(isSoundOn() ? 'MUSIC ON ' : 'MUSIC OFF', () => setSound(!isSoundOn()), { gap: 18 });
     add('8-BIT', () => setTheme('graveyard', '8bit'), { active: this.night && !this.snes });
-    add('SNES', () => setTheme('graveyard', 'snes'), { active: this.snes, gap: 18 });
+    add('16-BIT', () => setTheme('graveyard', 'snes'), { active: this.snes, gap: 18 });
     add('INSTRUCTIONS', (btn, pointer) =>
       openHelp(pointer?.event ? { x: pointer.event.clientX, y: pointer.event.clientY } : null),
     );
